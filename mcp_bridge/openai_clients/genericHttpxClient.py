@@ -12,6 +12,7 @@ async def create_client(request: Request = None):
             "Content-Type": "application/json"
         },
         timeout=10000,
+        trust_env=True,  # Enable proxy support from environment variables
     )
     
     if request:

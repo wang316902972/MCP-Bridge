@@ -8,13 +8,18 @@ services:
           action: rebuild
     container_name: mcp-bridge
     ports:
-      - "8000:8000"
+      - "8004:8000"
     environment:
-      - MCP_BRIDGE__CONFIG__FILE=config.json # mount the config file for this to work
-      # - MCP_BRIDGE__CONFIG__HTTP_URL=http://10.88.100.170:8888/config.json
-      # - MCP_BRIDGE__CONFIG__JSON=
-    # volumes:
-    #   - ./config.json:/mcp_bridge/config.json
+      - MCP_BRIDGE__CONFIG__FILE=config.json
+      # Use proxy for external access but bypass for internal networks
+      - http_proxy=http://192.168.136.223:7897
+      - https_proxy=http://192.168.136.223:7897
+      - HTTP_PROXY=http://192.168.136.223:7897
+      - HTTPS_PROXY=http://192.168.136.223:7897
+      - NO_PROXY=localhost,127.0.0.1,192.168.136.224,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12
+      - no_proxy=localhost,127.0.0.1,192.168.136.224,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12
+    volumes:
+      - ./config.json:/mcp_bridge/config.json
     restart: unless-stopped
 
   jaeger:

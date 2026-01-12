@@ -43,8 +43,14 @@ class SSEMCPServer(BaseModel):
     url: str = Field(description="URL of the MCP server")
 
 
+class HTTPMCPServer(BaseModel):
+    """HTTP MCP Server - 使用HTTP POST和JSON-RPC 2.0协议"""
+    url: str = Field(description="URL of the MCP server (HTTP POST endpoint)")
+    protocol: Literal["http"] = Field(default="http", description="Protocol type")
+
+
 MCPServer = Annotated[
-    Union[StdioServerParameters, SSEMCPServer, DockerMCPServer],
+    Union[StdioServerParameters, SSEMCPServer, HTTPMCPServer, DockerMCPServer],
     Field(description="MCP server configuration"),
 ]
 

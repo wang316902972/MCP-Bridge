@@ -18,9 +18,13 @@ async def chat_completion_add_tools(request: CreateChatCompletionRequest):
             continue
 
         tools = await session.session.list_tools()
+        logger.info(f"🔧 Loaded {len(tools.tools)} tools from {session.name}")
         for tool in tools.tools:
-            request.tools.append(mcp2openai(tool))
+            tool_obj = mcp2openai(tool)
+            request.tools.append(tool_obj)
+            logger.debug(f"   - {tool_obj.function.name}: {tool_obj.function.description}")
 
+    logger.info(f"✅ Total tools injected: {len(request.tools)}")
     return request
 
 

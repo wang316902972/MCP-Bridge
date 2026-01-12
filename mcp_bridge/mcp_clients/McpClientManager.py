@@ -5,13 +5,14 @@ from mcp import McpError, StdioServerParameters
 from mcpx.client.transports.docker import DockerMCPServer
 
 from mcp_bridge.config import config
-from mcp_bridge.config.final import SSEMCPServer
+from mcp_bridge.config.final import SSEMCPServer, HTTPMCPServer
 
 from .DockerClient import DockerClient
+from .HttpClient import HttpClient
 from .SseClient import SseClient
 from .StdioClient import StdioClient
 
-client_types = Union[StdioClient, SseClient, DockerClient]
+client_types = Union[StdioClient, SseClient, HttpClient, DockerClient]
 
 
 class MCPClientManager:
@@ -38,6 +39,12 @@ class MCPClientManager:
         if isinstance(server_config, SSEMCPServer):
             # TODO: implement sse client
             client = SseClient(name, server_config)  # type: ignore
+            await client.start()
+            return client
+        
+        if isinstance(server_config, HTTPMCPServer):
+            # HTTP MCP client
+            client = HttpClient(name, server_config)  # type: ignore
             await client.start()
             return client
         
