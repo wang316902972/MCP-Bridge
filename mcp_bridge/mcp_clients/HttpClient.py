@@ -206,8 +206,22 @@ class HttpClient(GenericMcpClient):
                 if isinstance(result, dict) and "content" in result:
                     content = result["content"]
                     if isinstance(content, list):
+                        # 处理content列表，避免双重JSON序列化
+                        content_items = []
+                        for item in content:
+                            if isinstance(item, dict):
+                                # 如果item包含type和text字段，说明它已经是MCP标准格式
+                                # 直接使用text字段的值，不要再次序列化
+                                if "type" in item and "text" in item:
+                                    content_items.append(TextContent(type=item.get("type", "text"), text=item["text"]))
+                                else:
+                                    # 不是标准格式，序列化为JSON字符串
+                                    content_items.append(TextContent(type="text", text=json.dumps(item, ensure_ascii=False)))
+                            else:
+                                content_items.append(TextContent(type="text", text=str(item)))
+                        
                         return CallToolResult(
-                            content=[TextContent(type="text", text=json.dumps(item)) if isinstance(item, dict) else TextContent(type="text", text=str(item)) for item in content],
+                            content=content_items,
                             isError=result.get("isError", False)
                         )
                     return CallToolResult(
