@@ -24,9 +24,16 @@ class MCPClientManager:
         logger.log("DEBUG", "Initializing MCP Client Manager")
 
         for server_name, server_config in config.mcp_servers.items():
-            self.clients[server_name] = await self.construct_client(
-                server_name, server_config
-            )
+            try:
+                logger.info(f"Initializing {server_name} with config type {type(server_config).__name__}")
+                self.clients[server_name] = await self.construct_client(
+                    server_name, server_config
+                )
+                logger.info(f"Successfully initialized {server_name}")
+            except Exception as e:
+                logger.error(f"Failed to initialize {server_name}: {type(e).__name__}: {e}")
+                import traceback
+                logger.error(f"Stack trace:\n{traceback.format_exc()}")
 
     async def construct_client(self, name, server_config) -> client_types:
         logger.log("DEBUG", f"Constructing client for {server_config}")

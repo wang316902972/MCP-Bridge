@@ -46,18 +46,22 @@ class McpClientSession(
         return session
 
     async def _consume_messages(self):
+        """Consume incoming messages from the server"""
         try:
-            async for message in self.incoming_messages:
+            # Read from the _read_stream directly
+            async for message in self._read_stream:
                 try:
                     if isinstance(message, Exception):
                         logger.error(f"Received exception in message stream: {message}")
-                    elif isinstance(message, RequestResponder):                        
-                        logger.debug(f"Received request: {message.request}")                        
+                    elif isinstance(message, RequestResponder):
+                        logger.debug(f"Received request: {message.request}")
+                        # Handle the request
+                        await self._received_request(message)
                     elif isinstance(message, types.ServerNotification):
                         if isinstance(message.root, types.LoggingMessageNotification):
-                            logger.debug(f"Received notification from server: {message.root.params}")                        
+                            logger.debug(f"Received notification from server: {message.root.params}")
                         else:
-                            logger.debug(f"Received notification from server: {message}")                        
+                            logger.debug(f"Received notification from server: {message}")
                     else:
                         logger.debug(f"Received notification: {message}")
                 except Exception as e:

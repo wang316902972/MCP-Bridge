@@ -14,13 +14,29 @@ class SseClient(GenericMcpClient):
         super().__init__(name=name)
 
         self.config = config
+        self._tools_cache = []  # Cache for tools list
 
     async def _maintain_session(self):
         async with sse_client(self.config.url) as client:
             async with McpClientSession(*client) as session:
                 await session.initialize()
-                logger.debug(f"finished initialise session for {self.name}")
+                logger.info(f"✅ {self.name} SSE session initialized")
+
                 self.session = session
+
+                # Load and cache tools (may fail, should not break the session)
+                logger.info(f"🔍 Attempting to load tools for {self.name}...")
+                try:
+                    import asyncio
+                    tools_result = await asyncio.wait_for(session.list_tools(), timeout=30.0)
+                    self._tools_cache = tools_result.tools
+                    logger.info(f"✅ {self.name} 已加载 {len(self._tools_cache)} 个工具")
+                except asyncio.TimeoutError:
+                    logger.error(f"⏱️ Timeout loading tools for {self.name} (30s)")
+                except Exception as e:
+                    logger.error(f"⚠️ 无法获取工具列表 {self.name}: {type(e).__name__}: {e}")
+                    import traceback
+                    logger.error(f"Stack trace:\n{traceback.format_exc()}")
 
                 try:
                     while True:

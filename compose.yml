@@ -9,6 +9,10 @@ services:
     container_name: mcp-bridge
     ports:
       - "8004:8000"
+    networks:
+      - default
+      - docker_graphiti-mcp-network
+      - serena_serena-mcp-network
     environment:
       - MCP_BRIDGE__CONFIG__FILE=config.json
       # Use proxy for external access but bypass for internal networks
@@ -19,7 +23,12 @@ services:
       - NO_PROXY=localhost,127.0.0.1,192.168.136.224,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12
       - no_proxy=localhost,127.0.0.1,192.168.136.224,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12
     volumes:
-      - ./config.json:/mcp_bridge/config.json
+      # 映射配置文件
+      - ./config.json:/mcp_bridge/config.json:ro
+      # 映射源码目录到容器，实现代码热更新
+      - ./mcp_bridge:/mcp_bridge/mcp_bridge:rw
+      # 可选：日志目录映射
+      # - ./logs:/mcp_bridge/logs:rw
     restart: unless-stopped
 
   jaeger:
@@ -31,3 +40,11 @@ services:
       # - "5778:5778"     # Config server
       # - "9411:9411"     # Zipkin compatible
     restart: unless-stopped
+
+networks:
+  docker_graphiti-mcp-network:
+    external: true
+    name: docker_graphiti-mcp-network
+  serena_serena-mcp-network:
+    external: true
+    name: serena_serena-mcp-network

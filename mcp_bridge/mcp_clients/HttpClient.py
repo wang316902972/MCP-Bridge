@@ -52,7 +52,10 @@ class HttpClient(GenericMcpClient):
         if params:
             request_data["params"] = params
         
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream"
+        }
         if self._session_id:
             headers["mcp-session-id"] = self._session_id
         
@@ -67,11 +70,45 @@ class HttpClient(GenericMcpClient):
 
             logger.debug(f"📥 MCP原始响应 {self.name}: status={response.status_code}")
 
+            # Extract session ID from response headers if present
+            session_id = response.headers.get('mcp-session-id')
+            if session_id and not self._session_id:
+                self._session_id = session_id
+                logger.info(f"📌 获取到Session ID: {session_id[:20]}...")  # Log first 20 chars
+
             if response.status_code != 200:
                 logger.error(f"❌ MCP请求失败 {self.name}: {response.status_code} - {response.text}")
                 raise RuntimeError(f"MCP请求失败: {response.status_code}")
 
-            result = response.json()
+            # Handle both SSE (Server-Sent Events) and plain JSON formats
+            text = response.text
+            logger.debug(f"📥 MCP原始响应文本 {self.name}: {text[:200]}...")  # Log first 200 chars
+
+            result = None
+
+            # Try SSE format first (for graphiti and similar servers)
+            if 'data:' in text:
+                for line in text.split('\n'):
+                    line = line.strip()
+                    if line.startswith('data:'):
+                        json_str = line[5:].strip()  # Remove "data:" prefix
+                        if json_str:
+                            try:
+                                result = json.loads(json_str)
+                                break  # Use the first valid data message
+                            except json.JSONDecodeError as e:
+                                logger.warning(f"⚠️ 无法解析SSE数据: {json_str[:100]}... 错误: {e}")
+                                continue
+
+            # If no SSE format found, try plain JSON (for knowledge_base and similar servers)
+            if result is None:
+                try:
+                    result = json.loads(text)
+                    logger.debug(f"✅ 解析为纯JSON格式")
+                except json.JSONDecodeError as e:
+                    logger.error(f"❌ 无法解析JSON响应: {e}")
+                    raise RuntimeError(f"无法从响应中提取有效JSON数据")
+
             logger.debug(f"📥 MCP响应 {self.name}: {result}")
 
             # 检查错误
