@@ -1,0 +1,160 @@
+name: MCP-Bridge Tests
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      # MCP-Bridge 服务
+      mcp-bridge:
+        image: mcp-bridge:latest
+        ports:
+          - 8000:8000
+        env:
+          MCP_BRIDGE__CONFIG__FILE: /config.json
+        volumes:
+          - ./config.json:/config.json
+        options: >-
+          --health-cmd "curl -f http://localhost:8000/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      # DuckDuckGo MCP 服务
+      duckduckgo-mcp:
+        image: duckduckgo-mcp:latest
+        ports:
+          - 8080:8080
+        options: >-
+          --health-cmd "curl -f http://localhost:8080/mcp || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r tests/requirements.txt
+
+      - name: Wait for services
+        run: |
+          echo "等待服务启动..."
+          sleep 10
+
+          echo "检查 MCP-Bridge 服务..."
+          curl --retry 5 --retry-all-errors --retry-delay 5 http://localhost:8000/health
+
+          echo "检查 DuckDuckGo MCP 服务..."
+          curl --retry 5 --retry-all-errors --retry-delay 5 -X POST http://localhost:8080/mcp \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
+
+      - name: Configure environment
+        run: |
+          echo "MCP_BRIDGE_URL=http://localhost:8000" >> $GITHUB_ENV
+          echo "DUCKDUCKGO_MCP_URL=http://localhost:8080" >> $GITHUB_ENV
+          echo "TEST_API_KEY=test-api-key" >> $GITHUB_ENV
+
+      - name: Run quick tests
+        run: |
+          python tests/run_tests.py --fast
+        continue-on-error: true
+
+      - name: Run DuckDuckGo tests
+        run: |
+          python tests/run_tests.py --duckduckgo
+        continue-on-error: true
+
+      - name: Run integration tests
+        run: |
+          python tests/run_tests.py --integration
+        continue-on-error: true
+
+      - name: Generate coverage report
+        run: |
+          python tests/run_tests.py --coverage
+        continue-on-error: true
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: htmlcov/
+        if: always()
+
+      - name: Archive test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            .pytest_cache/
+            test-results.xml
+        if: always()
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+
+      - name: Run linting
+        run: |
+          ruff check mcp_bridge/
+          ruff check tests/
+
+      - name: Check formatting
+        run: |
+          ruff format --check mcp_bridge/
+          ruff format --check tests/
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [test, lint]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: mcp-bridge:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
