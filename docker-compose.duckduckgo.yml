@@ -1,0 +1,80 @@
+services:
+  duckduckgo-mcp:
+    build:
+      context: ./duckduckgo_mcp_server
+      dockerfile: Dockerfile
+    container_name: duckduckgo-mcp
+    ports:
+      - "8080:8080"
+    networks:
+      - duckduckgo-mcp-network
+      - docker_graphiti-mcp-network
+      - serena_serena-mcp-network
+    restart: unless-stopped
+    environment:
+      # Use proxy for external access but bypass for internal networks
+      - http_proxy=http://192.168.136.223:7897
+      - https_proxy=http://192.168.136.223:7897
+      - HTTP_PROXY=http://192.168.136.223:7897
+      - HTTPS_PROXY=http://192.168.136.223:7897
+      - NO_PROXY=localhost,127.0.0.1,192.168.136.224,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12
+      - no_proxy=localhost,127.0.0.1,192.168.136.224,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/mcp')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  mcp-bridge:
+    # Existing MCP-Bridge service - update to depend on DuckDuckGo
+    build:
+      context: .
+    develop:
+      watch:
+        - path: mcp_bridge
+          action: rebuild
+    container_name: mcp-bridge
+    ports:
+      - "8004:8000"
+    networks:
+      - duckduckgo-mcp-network
+      - docker_graphiti-mcp-network
+      - serena_serena-mcp-network
+    environment:
+      - MCP_BRIDGE__CONFIG__FILE=config.json
+      # Use proxy for external access but bypass for internal networks
+      - http_proxy=http://192.168.136.223:7897
+      - https_proxy=http://192.168.136.223:7897
+      - HTTP_PROXY=http://192.168.136.223:7897
+      - HTTPS_PROXY=http://192.168.136.223:7897
+      - NO_PROXY=localhost,127.0.0.1,192.168.136.224,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12
+      - no_proxy=localhost,127.0.0.1,192.168.136.224,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12
+    volumes:
+      # 映射配置文件
+      - ./config.json:/mcp_bridge/config.json:ro
+      # 映射源码目录到容器，实现代码热更新
+      - ./mcp_bridge:/mcp_bridge/mcp_bridge:rw
+    restart: unless-stopped
+    depends_on:
+      duckduckgo-mcp:
+        condition: service_healthy
+
+  jaeger:
+    image: jaegertracing/jaeger:latest
+    ports:
+      - "16686:16686"   # Web UI
+      - "4318:4318"     # OTLP HTTP
+    restart: unless-stopped
+    networks:
+      - duckduckgo-mcp-network
+
+networks:
+  duckduckgo-mcp-network:
+    name: duckduckgo-mcp-network
+  docker_graphiti-mcp-network:
+    external: true
+    name: docker_graphiti-mcp-network
+  serena_serena-mcp-network:
+    external: true
+    name: serena_serena-mcp-network
