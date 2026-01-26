@@ -2,7 +2,6 @@
 
 import pytest
 from typing import Dict, Any
-from conftest import TestConfig
 
 
 @pytest.mark.external

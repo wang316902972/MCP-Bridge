@@ -215,21 +215,33 @@ async def call_instant_answer(ddgs: DDGS, arguments: Dict[str, Any]) -> List[Dic
     logger.info(f"⚡ Instant answer: query='{query}'")
 
     try:
-        answer_results = ddgs.answers(query)
+        # Use chat() for instant answers (new API for ddgs package)
+        answer_results = ddgs.chat(query, model="default")
 
-        results = []
-        for r in answer_results:
-            results.append({
-                "text": r.get("text", ""),
-                "url": r.get("url", ""),
-                "type": r.get("type", "")
-            })
+        results = [{
+            "text": answer_results,
+            "url": "",
+            "type": "answer"
+        }]
 
         logger.info(f"✅ Instant answer returned {len(results)} results")
         return results
 
     except Exception as e:
         logger.error(f"❌ Instant answer error: {e}")
+        # Fallback to regular web search for first result
+        try:
+            search_results = list(ddgs.text(query, max_results=1))
+            if search_results:
+                results = [{
+                    "text": search_results[0].get("body", ""),
+                    "url": search_results[0].get("link", ""),
+                    "type": "fallback"
+                }]
+                logger.info(f"✅ Fallback to web search successful")
+                return results
+        except Exception as fallback_error:
+            logger.error(f"❌ Fallback search also failed: {fallback_error}")
         raise
 
 
@@ -392,11 +404,29 @@ async def root():
     }
 
 
+@app.get("/health")
+async def health():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "service": "duckduckgo-mcp"
+    }
+
+
 if __name__ == "__main__":
+    import sys
+    import argparse
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="DuckDuckGo MCP Server")
+    parser.add_argument("--port", type=int, default=8080, help="Port to run the server on")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind to")
+    args = parser.parse_args()
+
     # Run server
     uvicorn.run(
         app,
-        host="0.0.0.0",
-        port=8080,
+        host=args.host,
+        port=args.port,
         log_level="info"
     )

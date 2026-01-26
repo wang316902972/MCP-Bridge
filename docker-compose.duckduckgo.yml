@@ -20,7 +20,7 @@ services:
       - NO_PROXY=localhost,127.0.0.1,192.168.136.224,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12
       - no_proxy=localhost,127.0.0.1,192.168.136.224,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/mcp')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
       interval: 30s
       timeout: 10s
       retries: 3

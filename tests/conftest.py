@@ -18,10 +18,10 @@ class TestConfig:
     """测试配置"""
 
     # MCP-Bridge 服务地址
-    MCP_BRIDGE_URL = os.getenv("MCP_BRIDGE_URL", "http://localhost:8000")
+    MCP_BRIDGE_URL = os.getenv("MCP_BRIDGE_URL", "http://localhost:8004")
 
     # DuckDuckGo MCP 服务地址
-    DUCKDUCKGO_MCP_URL = os.getenv("DUCKDUCKGO_MCP_URL", "http://localhost:8080")
+    DUCKDUCKGO_MCP_URL = os.getenv("DUCKDUCKGO_MCP_URL", "http://localhost:8005")
 
     # 测试 API Key (如果启用了认证)
     API_KEY = os.getenv("TEST_API_KEY", "test-api-key")
