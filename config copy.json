@@ -1,0 +1,19 @@
+{
+  "inference_server": {
+    "base_url": "https://yunwu.ai/v1",
+    "api_key": "sk-cGEGGadjgJWo1OM0A5jyvE0ufDWjHGl5Mu6L1dqbkkwjQ7ml"
+  },
+  "mcp_servers": {
+    "knowledge_base": {
+      "url": "http://192.168.136.224:8003/v1/mcp",
+      "protocol": "http"
+    }
+  },
+  "sampling": {
+    "timeout": 10,
+    "models": []
+  },
+  "logging": {
+    "log_level": "INFO"
+  }
+}

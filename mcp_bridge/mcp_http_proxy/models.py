@@ -9,7 +9,7 @@ class JSONRPCRequest(BaseModel):
     jsonrpc: str = Field("2.0", description="JSON-RPC版本")
     method: str = Field(..., description="要调用的方法名")
     params: Optional[dict[str, Any]] = Field(None, description="方法参数")
-    id: Any = Field(..., description="请求标识符")
+    id: Optional[Any] = Field(None, description="请求标识符（通知类型请求为null）")
 
 
 class JSONRPCError(BaseModel):

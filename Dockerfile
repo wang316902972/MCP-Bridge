@@ -1,5 +1,9 @@
 FROM python:3.12-bullseye
 
+# 配置 pip 使用清华镜像源
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
+    pip config set install.trusted-host pypi.tuna.tsinghua.edu.cn
+
 # install uv to run stdio clients (uvx)
 RUN pip install --no-cache-dir uv
 

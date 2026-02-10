@@ -115,7 +115,11 @@ class HttpClient(GenericMcpClient):
             if result.get("error") is not None:
                 error = result["error"]
                 error_msg = error.get('message', str(error)) if isinstance(error, dict) else str(error)
-                logger.error(f"❌ MCP错误 {self.name}: {error_msg}")
+                # "Method not found" 是可选方法不支持时的正常响应，使用debug级别
+                if "Method not found" in error_msg:
+                    logger.debug(f"MCP方法不支持 {self.name}: {error_msg}")
+                else:
+                    logger.error(f"❌ MCP错误 {self.name}: {error_msg}")
                 raise RuntimeError(f"MCP错误: {error_msg}")
 
             # 返回结果
@@ -316,7 +320,12 @@ class HttpClient(GenericMcpClient):
                 return ListResourcesResult(resources=result["resources"])
             return ListResourcesResult(resources=[])
         except Exception as e:
-            logger.error(f"列出资源错误: {e}")
+            # "Method not found" 是可选方法，不是所有MCP服务器都支持，使用debug级别日志
+            error_msg = str(e)
+            if "Method not found" in error_msg:
+                logger.debug(f"MCP服务器 {self.name} 不支持 resources/list 方法（这是可选功能）")
+            else:
+                logger.error(f"列出资源错误: {e}")
             return ListResourcesResult(resources=[])
 
     async def list_prompts(self) -> ListPromptsResult:
@@ -329,6 +338,11 @@ class HttpClient(GenericMcpClient):
                 return ListPromptsResult(prompts=result["prompts"])
             return ListPromptsResult(prompts=[])
         except Exception as e:
-            logger.error(f"列出提示错误: {e}")
+            # "Method not found" 是可选方法，不是所有MCP服务器都支持，使用debug级别日志
+            error_msg = str(e)
+            if "Method not found" in error_msg:
+                logger.debug(f"MCP服务器 {self.name} 不支持 prompts/list 方法（这是可选功能）")
+            else:
+                logger.error(f"列出提示错误: {e}")
             return ListPromptsResult(prompts=[])
 

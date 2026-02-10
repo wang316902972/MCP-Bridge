@@ -76,7 +76,10 @@ class MCPSearchClient:
         if params:
             request_data["params"] = params
         
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream"
+        }
         if self._session_id:
             headers["mcp-session-id"] = self._session_id
         

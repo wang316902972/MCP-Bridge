@@ -11,12 +11,11 @@ services:
       - "8004:8000"
     networks:
       - default
-      - docker_graphiti-mcp-network
-      - serena_serena-mcp-network
+      - mcp_network
     environment:
       - MCP_BRIDGE__CONFIG__FILE=config.json
       # Use proxy for external access but bypass for internal networks
-      - http_proxy=http://192.168.136.223:7897
+      - http_proxy=http://192.168.136.224:7897
       - https_proxy=http://192.168.136.223:7897
       - HTTP_PROXY=http://192.168.136.223:7897
       - HTTPS_PROXY=http://192.168.136.223:7897
@@ -26,7 +25,7 @@ services:
       # 映射配置文件
       - ./config.json:/mcp_bridge/config.json:ro
       # 映射源码目录到容器，实现代码热更新
-      - ./mcp_bridge:/mcp_bridge/mcp_bridge:rw
+      - ./mcp_bridge:/mcp_bridge:rw
       # 可选：日志目录映射
       # - ./logs:/mcp_bridge/logs:rw
     restart: unless-stopped
@@ -42,9 +41,8 @@ services:
     restart: unless-stopped
 
 networks:
-  docker_graphiti-mcp-network:
-    external: true
-    name: docker_graphiti-mcp-network
-  serena_serena-mcp-network:
-    external: true
-    name: serena_serena-mcp-network
+    default:
+      driver: bridge
+    mcp_network:
+      external: true
+  
