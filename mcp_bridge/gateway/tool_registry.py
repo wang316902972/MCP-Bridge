@@ -1,4 +1,5 @@
 import fnmatch
+import hashlib
 import json
 import re
 import time
@@ -10,6 +11,9 @@ from mcp import types
 
 import mcp_bridge.config as bridge_config
 from mcp_bridge.config.final import GatewayToolsConfig, ToolExposureRule
+
+MAX_TOOL_NAME_LENGTH = 64
+TOOL_NAME_HASH_LENGTH = 8
 
 
 @dataclass(frozen=True)
@@ -434,9 +438,16 @@ class GatewayToolRegistry:
 
     def _sanitize_tool_name(self, name: str) -> str:
         sanitized = re.sub(r"[^a-zA-Z0-9_-]", "_", name)
-        if re.match(r"^[a-zA-Z_]", sanitized):
+        if not re.match(r"^[a-zA-Z_]", sanitized):
+            sanitized = f"tool_{sanitized}"
+        if len(sanitized) <= MAX_TOOL_NAME_LENGTH:
             return sanitized
-        return f"tool_{sanitized}"
+
+        digest = hashlib.sha1(sanitized.encode("utf-8")).hexdigest()[
+            :TOOL_NAME_HASH_LENGTH
+        ]
+        suffix = f"_{digest}"
+        return f"{sanitized[: MAX_TOOL_NAME_LENGTH - len(suffix)]}{suffix}"
 
     def _matches_exposure_rules(
         self,

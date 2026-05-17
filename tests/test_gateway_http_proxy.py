@@ -106,6 +106,18 @@ async def test_tools_list_returns_router_tools_in_router_mode(
 
 
 @pytest.mark.asyncio
+async def test_unknown_method_returns_jsonrpc_method_not_found():
+    class FakeRequest:
+        async def json(self):
+            return {"jsonrpc": "2.0", "method": "invalid/method", "id": 7}
+
+    response = await http_proxy_router.handle_mcp_jsonrpc(FakeRequest())
+
+    assert response.error is not None
+    assert response.error.code == -32601
+
+
+@pytest.mark.asyncio
 async def test_management_direct_call_is_forbidden_in_router_mode(
     patch_gateway_dependencies,
 ):

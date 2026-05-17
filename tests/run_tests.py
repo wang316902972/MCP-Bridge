@@ -16,7 +16,7 @@ import sys
 
 def run_pytest(args: list[str]) -> int:
     """运行 pytest 命令"""
-    cmd = ["python", "-m", "pytest", "-v", "--tb=short"] + args
+    cmd = [sys.executable, "-m", "pytest", "-v", "--tb=short"] + args
     print(f"运行: {' '.join(cmd)}\n")
     result = subprocess.run(cmd)
     return result.returncode
@@ -49,7 +49,7 @@ def main():
         markers.append("not external")
 
     if markers:
-        pytest_args.append(f"-m {' and '.join(markers)}")
+        pytest_args.extend(["-m", " and ".join(markers)])
 
     # 覆盖率
     if args.coverage:

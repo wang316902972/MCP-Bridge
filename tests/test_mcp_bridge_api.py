@@ -17,7 +17,7 @@ class TestMCPBridgeCoreAPI:
         data = response.json()
 
         assert "status" in data
-        assert data["status"] in ["healthy", "degraded", "unhealthy"]
+        assert data["status"] in ["ok", "healthy", "degraded", "unhealthy"]
 
         print(f"✅ 健康检查: {data['status']}")
 
@@ -130,22 +130,13 @@ class TestMCPBridgeCoreAPI:
     @pytest.mark.asyncio
     async def test_mcp_server_status(self, http_client, auth_headers):
         """测试 MCP 服务器状态端点"""
-        response = await http_client.get("/mcp/servers", headers=auth_headers)
+        response = await http_client.get("/mcp/tools", headers=auth_headers)
 
         assert response.status_code == 200
         data = response.json()
 
-        # 验证响应格式
-        assert isinstance(data, list) or isinstance(data, dict)
-
-        if isinstance(data, list):
-            print(f"✅ MCP 服务器状态: {len(data)} 个服务器")
-            for server in data:
-                print(
-                    f"   - {server.get('name', 'Unknown')}: {server.get('status', 'Unknown')}"
-                )
-        else:
-            print("✅ MCP 服务器状态获取成功")
+        assert isinstance(data, dict)
+        print(f"✅ MCP 管理工具状态获取成功: {len(data)} 个服务器")
 
     @pytest.mark.asyncio
     async def test_mcp_http_proxy(self, http_client):
@@ -153,7 +144,7 @@ class TestMCPBridgeCoreAPI:
         # 列出工具
         request_data = {"jsonrpc": "2.0", "method": "tools/list", "id": 6}
 
-        response = await http_client.post("/mcp", json=request_data)
+        response = await http_client.post("/v1/mcp/", json=request_data)
 
         assert response.status_code == 200
         data = response.json()
@@ -193,9 +184,9 @@ class TestMCPBridgeCoreAPI:
         data = response.json()
 
         # 验证错误响应
-        if "error" in data:
-            assert data["error"]["code"] == -32601
-            print(f"✅ 方法验证: {data['error']['message']}")
+        assert "error" in data
+        assert data["error"]["code"] == -32601
+        print(f"✅ 方法验证: {data['error']['message']}")
 
     @pytest.mark.asyncio
     async def test_concurrent_tool_calls(self, http_client, jsonrpc_headers):

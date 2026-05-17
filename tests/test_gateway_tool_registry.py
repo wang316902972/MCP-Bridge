@@ -1,4 +1,5 @@
 import json
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -45,6 +46,11 @@ def make_tool(name: str, description: str = "") -> types.Tool:
         description=description or f"{name} description",
         inputSchema={"type": "object", "properties": {}},
     )
+
+
+def assert_valid_openai_tool_name(name: str) -> None:
+    assert len(name) <= 64
+    assert re.match(r"^[a-zA-Z0-9_-]+$", name)
 
 
 @pytest.fixture(autouse=True)
@@ -121,6 +127,26 @@ async def test_namespace_collision_strategy_exposes_namespaced_tools():
     result = await registry.call_exposed_tool(manager, "second__lookup", {"id": 1})
     assert result.isError is False
     assert second_client.calls == [("lookup", {"id": 1})]
+
+
+@pytest.mark.asyncio
+async def test_namespaced_tool_names_are_capped_for_openai_compatibility():
+    bridge_config.config.gateway.tools.mode = "namespaced"
+    bridge_config.config.gateway.tools.name_template = "{server}__{tool}"
+    registry = GatewayToolRegistry()
+    server_name = "server_" + "a" * 80
+    tool_name = "tool_" + "b" * 80
+    client = FakeClient(server_name, [make_tool(tool_name)])
+    manager = FakeClientManager({server_name: client})
+
+    tools = await registry.list_exposed_tools(manager)
+
+    assert len(tools) == 1
+    assert_valid_openai_tool_name(tools[0].name)
+
+    result = await registry.call_exposed_tool(manager, tools[0].name, {"id": 1})
+    assert result.isError is False
+    assert client.calls == [(tool_name, {"id": 1})]
 
 
 @pytest.mark.asyncio

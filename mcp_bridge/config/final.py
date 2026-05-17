@@ -221,6 +221,6 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         env_nested_delimiter="__",
-        cli_parse_args=True,
+        cli_parse_args=False,
         cli_avoid_json=True,
     )

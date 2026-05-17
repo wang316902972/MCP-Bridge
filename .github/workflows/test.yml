@@ -12,23 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    services:
-      # MCP-Bridge 服务
-      mcp-bridge:
-        image: mcp-bridge:latest
-        ports:
-          - 8000:8000
-        env:
-          MCP_BRIDGE__CONFIG__FILE: /config.json
-        volumes:
-          - ./config.json:/config.json
-        options: >-
-          --health-cmd "curl -f http://localhost:8000/health || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,16 +25,42 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r tests/requirements.txt
+          python -m pip install uv
+          uv sync --dev
+          uv pip install -r tests/requirements.txt
+
+      - name: Create test config
+        run: |
+          cat > ci-config.json <<'EOF'
+          {
+            "inference_server": {
+              "base_url": "http://127.0.0.1:9/v1",
+              "api_key": "test-api-key"
+            },
+            "mcp_servers": {},
+            "logging": {
+              "log_level": "INFO"
+            }
+          }
+          EOF
+
+      - name: Build MCP-Bridge image
+        run: |
+          docker build -t mcp-bridge:test .
+
+      - name: Start MCP-Bridge service
+        run: |
+          docker run -d \
+            --name mcp-bridge-test \
+            -p 8000:8000 \
+            -v "$PWD/ci-config.json:/mcp_bridge/config.json:ro" \
+            -e MCP_BRIDGE__CONFIG__FILE=/mcp_bridge/config.json \
+            mcp-bridge:test
 
       - name: Wait for services
         run: |
           echo "等待服务启动..."
-          sleep 10
-
-          echo "检查 MCP-Bridge 服务..."
-          curl --retry 5 --retry-all-errors --retry-delay 5 http://localhost:8000/health
-
+          curl --retry 10 --retry-all-errors --retry-delay 3 http://localhost:8000/health
 
       - name: Configure environment
         run: |
@@ -60,19 +69,16 @@ jobs:
 
       - name: Run quick tests
         run: |
-          python tests/run_tests.py --fast
-        continue-on-error: true
+          uv run python tests/run_tests.py --fast
 
 
       - name: Run integration tests
         run: |
-          python tests/run_tests.py --integration
-        continue-on-error: true
+          uv run python tests/run_tests.py --integration
 
       - name: Generate coverage report
         run: |
-          python tests/run_tests.py --coverage
-        continue-on-error: true
+          uv run python tests/run_tests.py --fast --coverage
 
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4

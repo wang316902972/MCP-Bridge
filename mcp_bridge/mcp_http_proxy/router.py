@@ -10,12 +10,16 @@ from mcp import types
 from mcp_bridge.gateway import ToolRegistry
 from mcp_bridge.mcp_clients.McpClientManager import ClientManager
 from mcp_bridge.mcp_http_proxy.models import (
+    JSONRPCError,
     JSONRPCRequest,
     JSONRPCResponse,
-    JSONRPCError,
 )
 
 router = APIRouter(prefix="/v1/mcp", tags=["MCP HTTP Proxy"])
+
+
+class JSONRPCMethodNotFoundError(Exception):
+    pass
 
 
 @router.post("/")
@@ -80,6 +84,17 @@ async def handle_mcp_jsonrpc(request: Request) -> JSONRPCResponse:
 
             return JSONRPCResponse(result=result, id=rpc_request.id)
 
+        except JSONRPCMethodNotFoundError as e:
+            error_msg = str(e)
+            logger.error(f"❌ MCP方法不存在: {rpc_request.method} - {error_msg}")
+
+            return JSONRPCResponse(
+                error=JSONRPCError(
+                    code=-32601, message="Method not found", data=error_msg
+                ),
+                id=rpc_request.id,
+            )
+
         except Exception as e:
             error_msg = str(e)
             logger.error(f"❌ 处理MCP请求失败: {rpc_request.method} - {error_msg}")
@@ -122,7 +137,7 @@ async def _dispatch_method(method: str, params: dict | None):
         return {}
 
     else:
-        raise ValueError(f"未知的方法: {method}")
+        raise JSONRPCMethodNotFoundError(f"未知的方法: {method}")
 
 
 async def _handle_initialize(params: dict | None):

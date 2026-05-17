@@ -1,5 +1,8 @@
 .PHONY: help test test-all test-unit test-integration test-fast test-coverage test-verbose lint format clean install-dev
 
+PYTHON ?= $(shell if [ -x .venv/bin/python ]; then printf '%s' .venv/bin/python; else printf '%s' python3; fi)
+UV ?= uv
+
 # 默认目标
 help:
 	@echo "MCP-Bridge 测试命令:"
@@ -23,44 +26,44 @@ help:
 # 安装测试依赖
 install-dev:
 	@echo "安装测试依赖..."
-	pip install -r tests/requirements.txt
+	$(UV) pip install -r tests/requirements.txt
 	@echo "✅ 依赖安装完成"
 
 # 运行所有测试
 test:
 	@echo "运行所有测试..."
-	python tests/run_tests.py
+	$(PYTHON) tests/run_tests.py
 
 # 运行所有测试 (包括外部服务)
 test-all:
 	@echo "运行所有测试 (包括外部服务)..."
-	python tests/run_tests.py --integration
+	$(PYTHON) tests/run_tests.py --integration
 
 # 只运行单元测试
 test-unit:
 	@echo "运行单元测试..."
-	python tests/run_tests.py --unit
+	$(PYTHON) tests/run_tests.py --unit
 
 # 只运行集成测试
 test-integration:
 	@echo "运行集成测试..."
-	python tests/run_tests.py --integration
+	$(PYTHON) tests/run_tests.py --integration
 
 # 快速测试 (跳过外部服务)
 test-fast:
 	@echo "运行快速测试..."
-	python tests/run_tests.py --fast
+	$(PYTHON) tests/run_tests.py --fast
 
 # 生成覆盖率报告
 test-coverage:
 	@echo "生成覆盖率报告..."
-	python tests/run_tests.py --coverage
+	$(PYTHON) tests/run_tests.py --coverage
 	@echo "✅ 覆盖率报告已生成: htmlcov/index.html"
 
 # 详细输出测试
 test-verbose:
 	@echo "运行测试 (详细输出)..."
-	python tests/run_tests.py --verbose
+	$(PYTHON) tests/run_tests.py --verbose
 
 # 代码检查
 lint:
