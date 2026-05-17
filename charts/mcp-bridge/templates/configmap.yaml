@@ -16,5 +16,28 @@ data:
       },
       "logging": {
         "log_level": {{ .Values.config.logging.logLevel | default "DEBUG" | quote }}
+      },
+      "gateway": {
+        "tools": {
+          "mode": {{ .Values.config.gateway.tools.mode | default "flat" | quote }},
+          "collision_strategy": {{ .Values.config.gateway.tools.collisionStrategy | default "first" | quote }},
+          "name_template": {{ .Values.config.gateway.tools.nameTemplate | default "{server}__{tool}" | quote }},
+          "cache_ttl_seconds": {{ .Values.config.gateway.tools.cacheTtlSeconds | default 60 }},
+          "include": {{ .Values.config.gateway.tools.include | default (list (dict "server" "*" "tools" (list "*"))) | toJson }},
+          "exclude": {{ .Values.config.gateway.tools.exclude | default (list) | toJson }},
+          "router": {
+            "prefix": {{ .Values.config.gateway.tools.router.prefix | default "mcp_bridge" | quote }},
+            "expose_search_tool": {{ dig "config" "gateway" "tools" "router" "exposeSearchTool" true .Values }},
+            "expose_call_tool": {{ dig "config" "gateway" "tools" "router" "exposeCallTool" true .Values }},
+            "expose_inventory_tool": {{ dig "config" "gateway" "tools" "router" "exposeInventoryTool" false .Values }},
+            "search_result_limit": {{ .Values.config.gateway.tools.router.searchResultLimit | default 20 }},
+            "include_input_schema": {{ dig "config" "gateway" "tools" "router" "includeInputSchema" true .Values }}
+          },
+          "dynamic_filter": {
+            "enabled": {{ dig "config" "gateway" "tools" "dynamicFilter" "enabled" false .Values }},
+            "max_tools": {{ .Values.config.gateway.tools.dynamicFilter.maxTools | default 20 }},
+            "include_router_fallback": {{ dig "config" "gateway" "tools" "dynamicFilter" "includeRouterFallback" true .Values }}
+          }
+        }
       }
     }

@@ -8,18 +8,18 @@ from lmos_openai_types import (
     CreateChatCompletionStreamResponse,
     Function1,
 )
-from .utils import call_tool, chat_completion_add_tools
+from .utils import call_tool, chat_completion_add_tools, is_mcp_bridge_tool
 from mcp_bridge.models import SSEData
 from .genericHttpxClient import get_client
-from mcp_bridge.mcp_clients.McpClientManager import ClientManager
-from mcp_bridge.tool_mappers import mcp2openai
 from loguru import logger
 from httpx_sse import aconnect_sse
 
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
 
-async def streaming_chat_completions(request: CreateChatCompletionRequest, http_request: Request):
+async def streaming_chat_completions(
+    request: CreateChatCompletionRequest, http_request: Request
+):
     # raise NotImplementedError("Streaming Chat Completion is not supported")
 
     try:
@@ -46,9 +46,11 @@ async def chat_completions(request: CreateChatCompletionRequest, http_request: R
         #     exclude_defaults=True, exclude_none=True, exclude_unset=True
         # )
 
-        json_data = json.dumps(request.model_dump(
-            exclude_defaults=True, exclude_none=True, exclude_unset=True
-        ))
+        json_data = json.dumps(
+            request.model_dump(
+                exclude_defaults=True, exclude_none=True, exclude_unset=True
+            )
+        )
 
         # logger.debug(json_data)
 
@@ -59,12 +61,12 @@ async def chat_completions(request: CreateChatCompletionRequest, http_request: R
         should_forward: bool = True
         response_content: str = ""
         tool_call_id: str = ""
+        buffered_tool_events: list[str] = []
 
         async with get_client(http_request) as client:
             async with aconnect_sse(
                 client, "post", "/chat/completions", content=json_data
             ) as event_source:
-                
                 # check if the content type is correct because the aiter_sse method
                 # will raise an exception if the content type is not correct
                 if "Content-Type" in event_source.response.headers:
@@ -74,9 +76,15 @@ async def chat_completions(request: CreateChatCompletionRequest, http_request: R
                         error_data = await event_source.response.aread()
                         logger.error(f"Request URL: {event_source.response.url}")
                         logger.error(f"Request Data: {json_data}")
-                        logger.error(f"Response Status: {event_source.response.status_code}")
-                        logger.error(f"Response Data: {error_data.decode(event_source.response.encoding or 'utf-8')}")
-                        raise HTTPException(status_code=500, detail="Unexpected Content-Type")
+                        logger.error(
+                            f"Response Status: {event_source.response.status_code}"
+                        )
+                        logger.error(
+                            f"Response Data: {error_data.decode(event_source.response.encoding or 'utf-8')}"
+                        )
+                        raise HTTPException(
+                            status_code=500, detail="Unexpected Content-Type"
+                        )
 
                 # iterate over the SSE stream
                 async for sse in event_source.aiter_sse():
@@ -96,25 +104,34 @@ async def chat_completions(request: CreateChatCompletionRequest, http_request: R
 
                     # for some reason openrouter uses uppercase for finish_reason
                     try:
-                        data['choices'][0]['finish_reason'] = data['choices'][0]['finish_reason'].lower() # type: ignore
+                        data["choices"][0]["finish_reason"] = data["choices"][0][
+                            "finish_reason"
+                        ].lower()  # type: ignore
                     except Exception as e:
                         logger.debug(f"failed to lowercase finish_reason: {e}")
 
                     try:
-                        parsed_data = CreateChatCompletionStreamResponse.model_validate_json(
-                            data
+                        parsed_data = (
+                            CreateChatCompletionStreamResponse.model_validate_json(data)
                         )
                     except Exception as e:
                         logger.debug(data)
                         raise e
 
                     # add the delta to the response content
-                    content = parsed_data.choices[0].delta.content if len(parsed_data.choices) > 0 else ""
+                    content = (
+                        parsed_data.choices[0].delta.content
+                        if len(parsed_data.choices) > 0
+                        else ""
+                    )
                     content = content if content is not None else ""
                     response_content += content
 
                     # handle stop reasons
-                    if  len(parsed_data.choices) > 0 and parsed_data.choices[0].finish_reason is not None:
+                    if (
+                        len(parsed_data.choices) > 0
+                        and parsed_data.choices[0].finish_reason is not None
+                    ):
                         if parsed_data.choices[0].finish_reason.value in [
                             "stop",
                             "length",
@@ -125,29 +142,40 @@ async def chat_completions(request: CreateChatCompletionRequest, http_request: R
 
                     # this manages the incoming tool call schema
                     # most of this is assertions to please mypy
-                    if len(parsed_data.choices) > 0 and parsed_data.choices[0].delta.tool_calls is not None:
+                    if (
+                        len(parsed_data.choices) > 0
+                        and parsed_data.choices[0].delta.tool_calls is not None
+                    ):
                         should_forward = False
                         assert (
-                            parsed_data.choices[0].delta.tool_calls[0].function is not None
+                            parsed_data.choices[0].delta.tool_calls[0].function
+                            is not None
                         )
 
                         name = parsed_data.choices[0].delta.tool_calls[0].function.name
                         name = name if name is not None else ""
-                        tool_call_name = name if tool_call_name == "" else tool_call_name
+                        tool_call_name = (
+                            name if tool_call_name == "" else tool_call_name
+                        )
 
                         call_id = parsed_data.choices[0].delta.tool_calls[0].id
                         call_id = call_id if call_id is not None else ""
-                        tool_call_id = id if tool_call_id == "" else tool_call_id
+                        tool_call_id = call_id if tool_call_id == "" else tool_call_id
 
-                        arg = parsed_data.choices[0].delta.tool_calls[0].function.arguments
+                        arg = (
+                            parsed_data.choices[0]
+                            .delta.tool_calls[0]
+                            .function.arguments
+                        )
                         tool_call_json += arg if arg is not None else ""
 
                     # forward SSE messages to the client
                     logger.debug(f"{should_forward=}")
                     if should_forward:
-                        # we do not want to forward tool call json to the client
                         logger.debug("forwarding message")
                         yield SSEData.model_validate_json(sse.data).model_dump_json()
+                    else:
+                        buffered_tool_events.append(sse.data)
 
                     # save the last message
                     last = parsed_data
@@ -157,7 +185,10 @@ async def chat_completions(request: CreateChatCompletionRequest, http_request: R
         if len(last.choices) > 0:
             assert last.choices[0].finish_reason is not None
 
-        if len(last.choices) > 0 and last.choices[0].finish_reason.value in ["stop", "length"]:
+        if len(last.choices) > 0 and last.choices[0].finish_reason.value in [
+            "stop",
+            "length",
+        ]:
             logger.debug("no tool calls found")
             fully_done = True
             continue
@@ -166,6 +197,15 @@ async def chat_completions(request: CreateChatCompletionRequest, http_request: R
         logger.debug(
             f"{tool_call_name=} {tool_call_json=}"
         )  # this should not be error but its easier to debug
+
+        if not is_mcp_bridge_tool(request, tool_call_name):
+            logger.debug(
+                f"forwarding external tool call without local execution: {tool_call_name}"
+            )
+            for event_data in buffered_tool_events:
+                yield event_data
+            yield ServerSentEvent(event="message", data="[DONE]", id=None, retry=None)
+            return
 
         # add received message to the history
         msg = ChatCompletionRequestMessage(

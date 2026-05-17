@@ -12,7 +12,7 @@ You can use the MCP-Bridge Rest API to call MCP tools from your own program. Thi
 
 ## Usecase 3: Custom Programs with MCP-Bridge SSE server
 
-You can use the MCP-Bridge SSE server to call MCP tools from your own program. This allows you to offload configuration and session management to the MCP-Bridge, and means you only need to support a single MCP server. No need to map tools to servers.
+You can use the MCP-Bridge SSE server to call MCP tools from your own program. This allows you to offload configuration and session management to the MCP-Bridge, and means you only need to support a single MCP server. For larger deployments, set `gateway.tools.mode` to `router` so clients see only gateway search/call tools instead of every downstream tool.
 
 ## Usecase 4: Docker to SSE adapter
 

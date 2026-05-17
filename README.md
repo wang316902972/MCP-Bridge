@@ -10,13 +10,13 @@
 MCP-Bridge acts as a bridge between the OpenAI API and MCP (MCP) tools, allowing developers to leverage MCP tools through the OpenAI API interface.
 
 > [!NOTE]
-> 
+>
 >  Looking for new maintainers to assist with the project. Reach out in the Discord or open an issue if you are interested.
 >
 >  Additionally, Open WebUI natively supports MCP (Model Context Protocol) starting in v0.6.31, so MCP-Bridge should be considered as soft deprecated now.
 
 ## Overview
-MCP-Bridge is designed to facilitate the integration of MCP tools with the OpenAI API. It provides a set of endpoints that can be used to interact with MCP tools in a way that is compatible with the OpenAI API. This allows you to use any client with any MCP tool without explicit support for MCP. For example, see this example of using Open Web UI with the official MCP fetch tool. 
+MCP-Bridge is designed to facilitate the integration of MCP tools with the OpenAI API. It provides a set of endpoints that can be used to interact with MCP tools in a way that is compatible with the OpenAI API. This allows you to use any client with any MCP tool without explicit support for MCP. For example, see this example of using Open Web UI with the official MCP fetch tool.
 
 ![open web ui example](/assets/owui_example.png)
 
@@ -42,7 +42,7 @@ planned features:
 
 ## Installation
 
-The recommended way to install MCP-Bridge is to use Docker. See the example compose.yml file for an example of how to set up docker. 
+The recommended way to install MCP-Bridge is to use Docker. See the example compose.yml file for an example of how to set up docker.
 
 Note that this requires an inference engine with tool call support. I have tested this with vLLM with success, though ollama should also be compatible.
 
@@ -112,14 +112,14 @@ uv run mcp_bridge/main.py
 ## Usage
 Once the application is running, you can interact with it using the OpenAI API.
 
-View the documentation at [http://yourserver:8000/docs](http://localhost:8000/docs). There is an endpoint to list all the MCP tools available on the server, which you can use to test the application configuration.
+View the documentation at [http://yourserver:8000/docs](http://localhost:8000/docs). There are management endpoints to inspect all downstream MCP tools, which you can use to test the application configuration.
 
 ## Rest API endpoints
 
 MCP-Bridge exposes many rest api endpoints for interacting with all of the native MCP primatives. This lets you outsource the complexity of dealing with MCP servers to MCP-Bridge without comprimising on functionality. See the openapi docs for examples of how to use this functionality.
 
 ## SSE Bridge
-MCP-Bridge also provides an SSE bridge for external clients. This lets external chat apps with explicit MCP support use MCP-Bridge as a MCP server. Point your client at the SSE endpoint (http://yourserver:8000/mcp-server/sse) and you should be able to see all the MCP tools available on the server.
+MCP-Bridge also provides an SSE bridge for external clients. This lets external chat apps with explicit MCP support use MCP-Bridge as a MCP server. Point your client at the SSE endpoint (http://yourserver:8000/mcp-server/sse) and you will see the tools exposed by the configured gateway mode. The default `flat` mode preserves the old behavior, while `gateway.tools.mode=router` exposes only gateway search/call tools.
 
 This also makes it easy to test if your configuration is working correctly. You can use [wong2/mcp-cli](https://github.com/wong2/mcp-cli?tab=readme-ov-file#connect-to-a-running-server-over-sse) to test your configuration. `npx @wong2/mcp-cli --sse http://localhost:8000/mcp-server/sse`
 
@@ -227,7 +227,7 @@ There is also documentation available [here](/docs/README.md).
 
 ## How does it work
 
-The application sits between the OpenAI API and the inference engine. An incoming request is modified to include tool definitions for all MCP tools available on the MCP servers. The request is then forwarded to the inference engine, which uses the tool definitions to create tool calls. MCP bridge then manage the calls to the tools. The request is then modified to include the tool call results, and is returned to the inference engine again so the LLM can create a response. Finally, the response is returned to the OpenAI API.
+The application sits between the OpenAI API and the inference engine. An incoming request is modified to include tool definitions exposed by the gateway registry. In default `flat` mode this is backward-compatible with direct downstream tools; in `router` mode only gateway search/call tools are injected so the LLM does not receive every downstream tool schema. The request is then forwarded to the inference engine, which uses the tool definitions to create tool calls. MCP bridge then manages the calls to the tools. The request is then modified to include the tool call results, and is returned to the inference engine again so the LLM can create a response. Finally, the response is returned to the OpenAI API.
 
 ```mermaid
 sequenceDiagram

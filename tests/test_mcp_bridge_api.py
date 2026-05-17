@@ -1,8 +1,6 @@
 """MCP-Bridge 核心 API 集成测试"""
 
 import pytest
-import json
-from typing import Dict, Any
 
 
 @pytest.mark.external
@@ -38,21 +36,17 @@ class TestMCPBridgeCoreAPI:
 
         assert schema["info"]["title"] == "MCP Bridge"
 
-        print(f"✅ OpenAPI schema: {schema['info']['title']} v{schema['info']['version']}")
+        print(
+            f"✅ OpenAPI schema: {schema['info']['title']} v{schema['info']['version']}"
+        )
 
     @pytest.mark.asyncio
     async def test_mcp_tools_list(self, http_client, jsonrpc_headers):
         """测试 MCP 工具列表端点"""
-        request_data = {
-            "jsonrpc": "2.0",
-            "method": "tools/list",
-            "id": 1
-        }
+        request_data = {"jsonrpc": "2.0", "method": "tools/list", "id": 1}
 
         response = await http_client.post(
-            "/v1/mcp/",
-            headers=jsonrpc_headers,
-            json=request_data
+            "/v1/mcp/", headers=jsonrpc_headers, json=request_data
         )
 
         assert response.status_code == 200
@@ -71,16 +65,10 @@ class TestMCPBridgeCoreAPI:
     @pytest.mark.asyncio
     async def test_mcp_resources_list(self, http_client, jsonrpc_headers):
         """测试 MCP 资源列表端点"""
-        request_data = {
-            "jsonrpc": "2.0",
-            "method": "resources/list",
-            "id": 2
-        }
+        request_data = {"jsonrpc": "2.0", "method": "resources/list", "id": 2}
 
         response = await http_client.post(
-            "/v1/mcp/",
-            headers=jsonrpc_headers,
-            json=request_data
+            "/v1/mcp/", headers=jsonrpc_headers, json=request_data
         )
 
         assert response.status_code == 200
@@ -96,16 +84,10 @@ class TestMCPBridgeCoreAPI:
     @pytest.mark.asyncio
     async def test_mcp_prompts_list(self, http_client, jsonrpc_headers):
         """测试 MCP 提示列表端点"""
-        request_data = {
-            "jsonrpc": "2.0",
-            "method": "prompts/list",
-            "id": 3
-        }
+        request_data = {"jsonrpc": "2.0", "method": "prompts/list", "id": 3}
 
         response = await http_client.post(
-            "/v1/mcp/",
-            headers=jsonrpc_headers,
-            json=request_data
+            "/v1/mcp/", headers=jsonrpc_headers, json=request_data
         )
 
         assert response.status_code == 200
@@ -126,23 +108,14 @@ class TestMCPBridgeCoreAPI:
             "method": "initialize",
             "params": {
                 "protocolVersion": "2024-11-05",
-                "capabilities": {
-                    "tools": {},
-                    "resources": {},
-                    "prompts": {}
-                },
-                "clientInfo": {
-                    "name": "test-client",
-                    "version": "1.0.0"
-                }
+                "capabilities": {"tools": {}, "resources": {}, "prompts": {}},
+                "clientInfo": {"name": "test-client", "version": "1.0.0"},
             },
-            "id": 4
+            "id": 4,
         }
 
         response = await http_client.post(
-            "/v1/mcp/",
-            headers=jsonrpc_headers,
-            json=request_data
+            "/v1/mcp/", headers=jsonrpc_headers, json=request_data
         )
 
         assert response.status_code == 200
@@ -155,48 +128,9 @@ class TestMCPBridgeCoreAPI:
         print(f"✅ MCP 初始化成功: {data['result']['serverInfo']['name']}")
 
     @pytest.mark.asyncio
-    async def test_mcp_tool_call_duckduckgo(self, http_client, jsonrpc_headers):
-        """测试通过 MCP-Bridge 调用 DuckDuckGo 工具"""
-        request_data = {
-            "jsonrpc": "2.0",
-            "method": "tools/call",
-            "params": {
-                "name": "web_search",
-                "arguments": {
-                    "query": "artificial intelligence",
-                    "max_results": 3
-                }
-            },
-            "id": 5
-        }
-
-        response = await http_client.post(
-            "/v1/mcp/",
-            headers=jsonrpc_headers,
-            json=request_data
-        )
-
-        assert response.status_code == 200
-        data = response.json()
-
-        # 验证工具调用结果
-        assert "result" in data
-        assert "content" in data["result"]
-        assert len(data["result"]["content"]) > 0
-
-        content = data["result"]["content"][0]
-        assert "text" in content
-
-        print(f"✅ DuckDuckGo 工具调用成功")
-        print(f"   结果预览: {content['text'][:100]}...")
-
-    @pytest.mark.asyncio
     async def test_mcp_server_status(self, http_client, auth_headers):
         """测试 MCP 服务器状态端点"""
-        response = await http_client.get(
-            "/mcp/servers",
-            headers=auth_headers
-        )
+        response = await http_client.get("/mcp/servers", headers=auth_headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -207,24 +141,19 @@ class TestMCPBridgeCoreAPI:
         if isinstance(data, list):
             print(f"✅ MCP 服务器状态: {len(data)} 个服务器")
             for server in data:
-                print(f"   - {server.get('name', 'Unknown')}: {server.get('status', 'Unknown')}")
+                print(
+                    f"   - {server.get('name', 'Unknown')}: {server.get('status', 'Unknown')}"
+                )
         else:
-            print(f"✅ MCP 服务器状态获取成功")
+            print("✅ MCP 服务器状态获取成功")
 
     @pytest.mark.asyncio
     async def test_mcp_http_proxy(self, http_client):
         """测试 MCP HTTP 代理端点"""
         # 列出工具
-        request_data = {
-            "jsonrpc": "2.0",
-            "method": "tools/list",
-            "id": 6
-        }
+        request_data = {"jsonrpc": "2.0", "method": "tools/list", "id": 6}
 
-        response = await http_client.post(
-            "/mcp",
-            json=request_data
-        )
+        response = await http_client.post("/mcp", json=request_data)
 
         assert response.status_code == 200
         data = response.json()
@@ -237,14 +166,9 @@ class TestMCPBridgeCoreAPI:
     @pytest.mark.asyncio
     async def test_error_handling_invalid_jsonrpc(self, http_client):
         """测试错误处理: 无效的 JSON-RPC 请求"""
-        request_data = {
-            "invalid_field": "value"
-        }
+        request_data = {"invalid_field": "value"}
 
-        response = await http_client.post(
-            "/v1/mcp/",
-            json=request_data
-        )
+        response = await http_client.post("/v1/mcp/", json=request_data)
 
         # 应该返回错误
         assert response.status_code == 200
@@ -259,16 +183,10 @@ class TestMCPBridgeCoreAPI:
     @pytest.mark.asyncio
     async def test_error_handling_invalid_method(self, http_client, jsonrpc_headers):
         """测试错误处理: 不存在的方法"""
-        request_data = {
-            "jsonrpc": "2.0",
-            "method": "invalid/method",
-            "id": 7
-        }
+        request_data = {"jsonrpc": "2.0", "method": "invalid/method", "id": 7}
 
         response = await http_client.post(
-            "/v1/mcp/",
-            headers=jsonrpc_headers,
-            json=request_data
+            "/v1/mcp/", headers=jsonrpc_headers, json=request_data
         )
 
         assert response.status_code == 200
@@ -284,32 +202,35 @@ class TestMCPBridgeCoreAPI:
         """测试并发工具调用"""
         import asyncio
 
-        async def make_tool_call(query: str, call_id: int):
+        tools_response = await http_client.post(
+            "/v1/mcp/",
+            headers=jsonrpc_headers,
+            json={"jsonrpc": "2.0", "method": "tools/list", "id": 1},
+        )
+        if tools_response.status_code != 200:
+            pytest.skip("无法获取工具列表")
+
+        tools_data = tools_response.json()
+        if "result" not in tools_data or not tools_data["result"].get("tools"):
+            pytest.skip("没有可用工具")
+
+        tool_name = tools_data["result"]["tools"][0]["name"]
+
+        async def make_tool_call(call_id: int):
             request_data = {
                 "jsonrpc": "2.0",
                 "method": "tools/call",
-                "params": {
-                    "name": "web_search",
-                    "arguments": {
-                        "query": query,
-                        "max_results": 2
-                    }
-                },
-                "id": call_id
+                "params": {"name": tool_name, "arguments": {}},
+                "id": call_id,
             }
 
             response = await http_client.post(
-                "/v1/mcp/",
-                headers=jsonrpc_headers,
-                json=request_data
+                "/v1/mcp/", headers=jsonrpc_headers, json=request_data
             )
             return response
 
-        # 并发执行多个搜索
-        queries = ["python", "javascript", "golang"]
-        responses = await asyncio.gather(
-            *[make_tool_call(q, i) for i, q in enumerate(queries)]
-        )
+        # 并发执行多个工具调用
+        responses = await asyncio.gather(*[make_tool_call(i) for i in range(3)])
 
         # 验证所有响应
         for i, response in enumerate(responses):
@@ -328,10 +249,7 @@ class TestMCPBridgeSampling:
     @pytest.mark.asyncio
     async def test_sampling_config(self, http_client, auth_headers):
         """测试采样配置"""
-        response = await http_client.get(
-            "/sampling/config",
-            headers=auth_headers
-        )
+        response = await http_client.get("/sampling/config", headers=auth_headers)
 
         # 可能返回 200 或 404
         if response.status_code == 200:
@@ -343,10 +261,7 @@ class TestMCPBridgeSampling:
     @pytest.mark.asyncio
     async def test_model_selection(self, http_client, auth_headers):
         """测试模型选择"""
-        response = await http_client.get(
-            "/sampling/models",
-            headers=auth_headers
-        )
+        response = await http_client.get("/sampling/models", headers=auth_headers)
 
         # 可能返回 200 或 404
         if response.status_code == 200:

@@ -5,10 +5,8 @@ from lmos_openai_types import (
     ChatCompletionRequestMessage,
 )
 
-from .utils import call_tool, chat_completion_add_tools
+from .utils import call_tool, chat_completion_add_tools, is_mcp_bridge_tool
 from .genericHttpxClient import get_client
-from mcp_bridge.mcp_clients.McpClientManager import ClientManager
-from mcp_bridge.tool_mappers import mcp2openai
 from loguru import logger
 import json
 
@@ -27,10 +25,12 @@ async def chat_completions(
             text = (
                 await client.post(
                     "/chat/completions",
-                    #content=request.model_dump_json(
+                    # content=request.model_dump_json(
                     #    exclude_defaults=True, exclude_none=True, exclude_unset=True
-                    #),
-                    json=request.model_dump(exclude_defaults=True, exclude_none=True, exclude_unset=True),
+                    # ),
+                    json=request.model_dump(
+                        exclude_defaults=True, exclude_none=True, exclude_unset=True
+                    ),
                 )
             ).text
         logger.debug(text)
@@ -55,11 +55,17 @@ async def chat_completions(
             return response
 
         logger.debug("tool calls found")
+        if any(
+            not is_mcp_bridge_tool(request, tool_call.function.name)
+            for tool_call in response.choices[0].message.tool_calls.root
+        ):
+            logger.debug("returning external tool calls without local execution")
+            return response
+
         for tool_call in response.choices[0].message.tool_calls.root:
             logger.debug(
                 f"tool call: {tool_call.function.name} arguments: {json.loads(tool_call.function.arguments)}"
             )
-
             # FIXME: this can probably be done in parallel using asyncio gather
             tool_call_result = await call_tool(
                 tool_call.function.name, tool_call.function.arguments

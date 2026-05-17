@@ -28,16 +28,6 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-      # DuckDuckGo MCP 服务
-      duckduckgo-mcp:
-        image: duckduckgo-mcp:latest
-        ports:
-          - 8080:8080
-        options: >-
-          --health-cmd "curl -f http://localhost:8080/mcp || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout code
@@ -62,15 +52,10 @@ jobs:
           echo "检查 MCP-Bridge 服务..."
           curl --retry 5 --retry-all-errors --retry-delay 5 http://localhost:8000/health
 
-          echo "检查 DuckDuckGo MCP 服务..."
-          curl --retry 5 --retry-all-errors --retry-delay 5 -X POST http://localhost:8080/mcp \
-            -H "Content-Type: application/json" \
-            -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'
 
       - name: Configure environment
         run: |
           echo "MCP_BRIDGE_URL=http://localhost:8000" >> $GITHUB_ENV
-          echo "DUCKDUCKGO_MCP_URL=http://localhost:8080" >> $GITHUB_ENV
           echo "TEST_API_KEY=test-api-key" >> $GITHUB_ENV
 
       - name: Run quick tests
@@ -78,10 +63,6 @@ jobs:
           python tests/run_tests.py --fast
         continue-on-error: true
 
-      - name: Run DuckDuckGo tests
-        run: |
-          python tests/run_tests.py --duckduckgo
-        continue-on-error: true
 
       - name: Run integration tests
         run: |

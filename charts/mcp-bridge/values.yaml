@@ -19,6 +19,27 @@ config:
     port: 9090
   logging:
     logLevel: "DEBUG"
+  gateway:
+    tools:
+      mode: "flat"
+      collisionStrategy: "first"
+      nameTemplate: "{server}__{tool}"
+      cacheTtlSeconds: 60
+      include:
+        - server: "*"
+          tools: ["*"]
+      exclude: []
+      router:
+        prefix: "mcp_bridge"
+        exposeSearchTool: true
+        exposeCallTool: true
+        exposeInventoryTool: false
+        searchResultLimit: 20
+        includeInputSchema: true
+      dynamicFilter:
+        enabled: false
+        maxTools: 20
+        includeRouterFallback: true
 
 # Example of how to add MCP servers
 #   mcpServers:

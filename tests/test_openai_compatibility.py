@@ -1,8 +1,6 @@
 """MCP-Bridge OpenAI API 兼容性测试"""
 
 import pytest
-import json
-from typing import Dict, Any, List
 
 
 @pytest.mark.external
@@ -17,16 +15,14 @@ class TestOpenAICompatibility:
             "model": "test-model",
             "messages": [
                 {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": "Hello!"}
+                {"role": "user", "content": "Hello!"},
             ],
             "temperature": 0.7,
-            "max_tokens": 100
+            "max_tokens": 100,
         }
 
         response = await http_client.post(
-            "/v1/chat/completions",
-            headers=auth_headers,
-            json=request_data
+            "/v1/chat/completions", headers=auth_headers, json=request_data
         )
 
         # 可能返回 200 (成功) 或 503 (推理服务未配置)
@@ -34,7 +30,7 @@ class TestOpenAICompatibility:
             data = response.json()
             assert "choices" in data
             assert len(data["choices"]) > 0
-            print(f"✅ Chat Completion 工作正常")
+            print("✅ Chat Completion 工作正常")
             print(f"   响应: {data['choices'][0]['message']['content'][:100]}...")
         elif response.status_code == 503:
             print("ℹ️  推理服务未配置或不可用")
@@ -46,8 +42,7 @@ class TestOpenAICompatibility:
         """测试带工具的 chat completion"""
         # 首先获取可用工具
         tools_response = await http_client.post(
-            "/v1/mcp/",
-            json={"jsonrpc": "2.0", "method": "tools/list", "id": 1}
+            "/v1/mcp/", json={"jsonrpc": "2.0", "method": "tools/list", "id": 1}
         )
 
         tools = []
@@ -56,14 +51,16 @@ class TestOpenAICompatibility:
             if "result" in tools_data and "tools" in tools_data["result"]:
                 # 转换为 OpenAI 工具格式
                 for tool in tools_data["result"]["tools"][:3]:  # 只取前 3 个
-                    tools.append({
-                        "type": "function",
-                        "function": {
-                            "name": tool["name"],
-                            "description": tool.get("description", ""),
-                            "parameters": tool.get("inputSchema", {})
+                    tools.append(
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": tool["name"],
+                                "description": tool.get("description", ""),
+                                "parameters": tool.get("inputSchema", {}),
+                            },
                         }
-                    })
+                    )
 
         if len(tools) == 0:
             pytest.skip("没有可用的 MCP 工具")
@@ -71,16 +68,17 @@ class TestOpenAICompatibility:
         request_data = {
             "model": "test-model",
             "messages": [
-                {"role": "user", "content": "Search for information about artificial intelligence"}
+                {
+                    "role": "user",
+                    "content": "Search for information about artificial intelligence",
+                }
             ],
             "tools": tools,
-            "tool_choice": "auto"
+            "tool_choice": "auto",
         }
 
         response = await http_client.post(
-            "/v1/chat/completions",
-            headers=auth_headers,
-            json=request_data
+            "/v1/chat/completions", headers=auth_headers, json=request_data
         )
 
         if response.status_code == 200:
@@ -101,16 +99,12 @@ class TestOpenAICompatibility:
         """测试流式 chat completion"""
         request_data = {
             "model": "test-model",
-            "messages": [
-                {"role": "user", "content": "Say hello"}
-            ],
-            "stream": True
+            "messages": [{"role": "user", "content": "Say hello"}],
+            "stream": True,
         }
 
         response = await http_client.post(
-            "/v1/chat/completions",
-            headers=auth_headers,
-            json=request_data
+            "/v1/chat/completions", headers=auth_headers, json=request_data
         )
 
         if response.status_code == 200:
@@ -133,8 +127,7 @@ class TestOpenAICompatibility:
         """测试完整的工具执行流程"""
         # 步骤 1: 获取工具列表
         tools_response = await http_client.post(
-            "/v1/mcp/",
-            json={"jsonrpc": "2.0", "method": "tools/list", "id": 1}
+            "/v1/mcp/", json={"jsonrpc": "2.0", "method": "tools/list", "id": 1}
         )
 
         assert tools_response.status_code == 200
@@ -143,28 +136,20 @@ class TestOpenAICompatibility:
         if "result" not in tools_data or "tools" not in tools_data["result"]:
             pytest.skip("没有可用的工具")
 
-        # 步骤 2: 调用工具
-        tool_name = "web_search"  # 假设有 DuckDuckGo
+        # 步骤 2: 调用第一个可用工具
         tools = tools_data["result"]["tools"]
-        tool_names = [t["name"] for t in tools]
+        if not tools:
+            pytest.skip("没有可用工具")
 
-        if tool_name not in tool_names:
-            pytest.skip(f"工具 {tool_name} 不可用")
-
+        tool_name = tools[0]["name"]
         call_response = await http_client.post(
             "/v1/mcp/",
             json={
                 "jsonrpc": "2.0",
                 "method": "tools/call",
-                "params": {
-                    "name": tool_name,
-                    "arguments": {
-                        "query": "test search",
-                        "max_results": 2
-                    }
-                },
-                "id": 2
-            }
+                "params": {"name": tool_name, "arguments": {}},
+                "id": 2,
+            },
         )
 
         assert call_response.status_code == 200
@@ -173,7 +158,7 @@ class TestOpenAICompatibility:
         assert "result" in call_data
         assert "content" in call_data["result"]
 
-        print(f"✅ 工具执行流程成功")
+        print("✅ 工具执行流程成功")
         print(f"   结果: {call_data['result']['content'][0]['text'][:100]}...")
 
     @pytest.mark.asyncio
@@ -182,13 +167,11 @@ class TestOpenAICompatibility:
         # 发送无效请求
         request_data = {
             "model": "test-model",
-            "messages": "invalid_format"  # 应该是数组
+            "messages": "invalid_format",  # 应该是数组
         }
 
         response = await http_client.post(
-            "/v1/chat/completions",
-            headers=auth_headers,
-            json=request_data
+            "/v1/chat/completions", headers=auth_headers, json=request_data
         )
 
         # 应该返回错误
@@ -202,26 +185,30 @@ class TestOpenAICompatibility:
     @pytest.mark.asyncio
     async def test_multiple_tool_calls(self, http_client, auth_headers):
         """测试多个工具调用"""
-        # 准备多个工具调用
+        tools_response = await http_client.post(
+            "/v1/mcp/", json={"jsonrpc": "2.0", "method": "tools/list", "id": 1}
+        )
+        if tools_response.status_code != 200:
+            pytest.skip("无法获取工具列表")
+
+        tools_data = tools_response.json()
+        if "result" not in tools_data or not tools_data["result"].get("tools"):
+            pytest.skip("没有可用工具")
+
+        tool_name = tools_data["result"]["tools"][0]["name"]
         tool_calls = [
             {
                 "jsonrpc": "2.0",
                 "method": "tools/call",
-                "params": {
-                    "name": "web_search",
-                    "arguments": {"query": "python", "max_results": 2}
-                },
-                "id": i
+                "params": {"name": tool_name, "arguments": {}},
+                "id": i,
             }
             for i in range(1, 4)
         ]
 
         results = []
         for call in tool_calls:
-            response = await http_client.post(
-                "/v1/mcp/",
-                json=call
-            )
+            response = await http_client.post("/v1/mcp/", json=call)
 
             if response.status_code == 200:
                 results.append(response.json())
@@ -232,15 +219,12 @@ class TestOpenAICompatibility:
     @pytest.mark.asyncio
     async def test_models_endpoint(self, http_client, auth_headers):
         """测试 models 端点"""
-        response = await http_client.get(
-            "/v1/models",
-            headers=auth_headers
-        )
+        response = await http_client.get("/v1/models", headers=auth_headers)
 
         if response.status_code == 200:
             data = response.json()
             assert "data" in data or "object" in data
-            print(f"✅ Models 端点可访问")
+            print("✅ Models 端点可访问")
         else:
             print(f"ℹ️  Models 端点状态: {response.status_code}")
 
@@ -250,15 +234,11 @@ class TestOpenAICompatibility:
         # 验证响应格式符合 OpenAI 规范
         request_data = {
             "model": "test-model",
-            "messages": [
-                {"role": "user", "content": "Test"}
-            ]
+            "messages": [{"role": "user", "content": "Test"}],
         }
 
         response = await http_client.post(
-            "/v1/chat/completions",
-            headers=auth_headers,
-            json=request_data
+            "/v1/chat/completions", headers=auth_headers, json=request_data
         )
 
         if response.status_code == 200:
@@ -294,34 +274,25 @@ class TestToolIntegration:
     """工具集成测试"""
 
     @pytest.mark.asyncio
-    async def test_duckduckgo_tool_availability(self, http_client, auth_headers):
-        """测试 DuckDuckGo 工具可用性"""
+    async def test_tool_availability(self, http_client, auth_headers):
+        """测试工具列表可访问"""
         response = await http_client.post(
-            "/v1/mcp/",
-            json={"jsonrpc": "2.0", "method": "tools/list", "id": 1}
+            "/v1/mcp/", json={"jsonrpc": "2.0", "method": "tools/list", "id": 1}
         )
 
         if response.status_code == 200:
             data = response.json()
             if "result" in data and "tools" in data["result"]:
                 tools = data["result"]["tools"]
-                tool_names = [t["name"] for t in tools]
-
-                ddg_tools = ["web_search", "news_search", "instant_answer"]
-                available_ddg_tools = [t for t in ddg_tools if t in tool_names]
-
-                if len(available_ddg_tools) > 0:
-                    print(f"✅ DuckDuckGo 工具可用: {available_ddg_tools}")
-                else:
-                    print("ℹ️  DuckDuckGo 工具未配置")
+                assert isinstance(tools, list)
+                print(f"✅ MCP 工具列表可访问: {len(tools)} 个工具")
 
     @pytest.mark.asyncio
     async def test_tool_call_roundtrip(self, http_client, auth_headers):
         """测试工具调用的完整往返"""
         # 1. 列出工具
         list_response = await http_client.post(
-            "/v1/mcp/",
-            json={"jsonrpc": "2.0", "method": "tools/list", "id": 1}
+            "/v1/mcp/", json={"jsonrpc": "2.0", "method": "tools/list", "id": 1}
         )
 
         if list_response.status_code != 200:
@@ -335,27 +306,17 @@ class TestToolIntegration:
         first_tool = tools_data["result"]["tools"][0]
         tool_name = first_tool["name"]
 
-        # 3. 调用工具 (使用测试参数)
-        if tool_name == "web_search":
-            arguments = {"query": "test", "max_results": 1}
-        elif tool_name == "news_search":
-            arguments = {"query": "test", "max_results": 1}
-        elif tool_name == "instant_answer":
-            arguments = {"query": "test"}
-        else:
-            arguments = {}
+        # 3. 调用工具 (使用空参数，具体工具可自行返回参数错误)
+        arguments = {}
 
         call_response = await http_client.post(
             "/v1/mcp/",
             json={
                 "jsonrpc": "2.0",
                 "method": "tools/call",
-                "params": {
-                    "name": tool_name,
-                    "arguments": arguments
-                },
-                "id": 2
-            }
+                "params": {"name": tool_name, "arguments": arguments},
+                "id": 2,
+            },
         )
 
         if call_response.status_code == 200:

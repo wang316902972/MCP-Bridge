@@ -45,6 +45,7 @@ class SSEMCPServer(BaseModel):
 
 class HTTPMCPServer(BaseModel):
     """HTTP MCP Server - 使用HTTP POST和JSON-RPC 2.0协议"""
+
     url: str = Field(description="URL of the MCP server (HTTP POST endpoint)")
     protocol: Literal["http"] = Field(default="http", description="Protocol type")
 
@@ -80,6 +81,75 @@ class Auth(BaseModel):
     api_keys: list[ApiKey] = Field([], description="API keys")
 
 
+class ToolExposureRule(BaseModel):
+    server: str = Field("*", description="Server name pattern")
+    tools: list[str] = Field(
+        default_factory=lambda: ["*"], description="Tool name patterns"
+    )
+
+
+class RouterToolsConfig(BaseModel):
+    prefix: str = Field("mcp_bridge", description="Prefix for gateway router tools")
+    expose_search_tool: bool = Field(True, description="Expose the gateway search tool")
+    expose_call_tool: bool = Field(True, description="Expose the gateway call tool")
+    expose_inventory_tool: bool = Field(
+        False, description="Expose the gateway inventory tool"
+    )
+    search_result_limit: int = Field(
+        20, ge=1, description="Maximum search results returned by router tools"
+    )
+    include_input_schema: bool = Field(
+        True, description="Include input schemas in search results"
+    )
+
+
+class DynamicToolFilterConfig(BaseModel):
+    enabled: bool = Field(False, description="Enable context-based tool filtering")
+    max_tools: int = Field(
+        20, ge=1, description="Maximum tools exposed after dynamic filtering"
+    )
+    include_router_fallback: bool = Field(
+        True, description="Include router tools after dynamic filtering"
+    )
+
+
+class GatewayToolsConfig(BaseModel):
+    mode: Literal["flat", "filtered", "namespaced", "router"] = Field(
+        "flat", description="Tool exposure mode"
+    )
+    collision_strategy: Literal["first", "error", "namespace"] = Field(
+        "first", description="How duplicate downstream tool names are handled"
+    )
+    name_template: str = Field(
+        "{server}__{tool}", description="Template for namespaced tools"
+    )
+    cache_ttl_seconds: int = Field(
+        60, ge=0, description="Tool registry cache TTL in seconds"
+    )
+    include: list[ToolExposureRule] = Field(
+        default_factory=lambda: [ToolExposureRule()],
+        description="Tool exposure include rules",
+    )
+    exclude: list[ToolExposureRule] = Field(
+        default_factory=list, description="Tool exposure exclude rules"
+    )
+    router: RouterToolsConfig = Field(
+        default_factory=lambda: RouterToolsConfig.model_construct(),
+        description="Gateway router tool configuration",
+    )
+    dynamic_filter: DynamicToolFilterConfig = Field(
+        default_factory=lambda: DynamicToolFilterConfig.model_construct(),
+        description="Dynamic tool filtering configuration",
+    )
+
+
+class GatewayConfig(BaseModel):
+    tools: GatewayToolsConfig = Field(
+        default_factory=lambda: GatewayToolsConfig.model_construct(),
+        description="Gateway tool exposure configuration",
+    )
+
+
 class Security(BaseModel):
     CORS: Cors = Field(
         default_factory=lambda: Cors.model_construct(), description="CORS configuration"
@@ -94,17 +164,17 @@ class Telemetry(BaseModel):
     """Telemetry configuration
 
     open-telemetry is entirely local to your own infrastructure and does not send any data to any external service unless you configure it to do so
-    
+
     defaults to false since we cannot assume you are actually running an open telemetry collector on your machine.
     """
+
     enabled: bool = Field(False, description="Enable telemetry")
-    service_name: str = Field(
-        default="MCP Bridge", description="Name of the service"
-    )
+    service_name: str = Field(default="MCP Bridge", description="Name of the service")
     otel_endpoint: str = Field(
         default="http://jaeger:4318/v1/traces",
         description="Endpoint for the OTEL exporter",
     )
+
 
 class Settings(BaseSettings):
     inference_server: InferenceServer = Field(
@@ -139,6 +209,11 @@ class Settings(BaseSettings):
     telemetry: Telemetry = Field(
         default_factory=lambda: Telemetry.model_construct(),
         description="telemetry config",
+    )
+
+    gateway: GatewayConfig = Field(
+        default_factory=lambda: GatewayConfig.model_construct(),
+        description="Gateway configuration",
     )
 
     model_config = SettingsConfigDict(

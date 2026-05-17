@@ -4,10 +4,16 @@
 转发到后端MCP服务器,并返回JSON-RPC 2.0响应
 """
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 from loguru import logger
+from mcp import types
+from mcp_bridge.gateway import ToolRegistry
 from mcp_bridge.mcp_clients.McpClientManager import ClientManager
-from mcp_bridge.mcp_http_proxy.models import JSONRPCRequest, JSONRPCResponse, JSONRPCError
+from mcp_bridge.mcp_http_proxy.models import (
+    JSONRPCRequest,
+    JSONRPCResponse,
+    JSONRPCError,
+)
 
 router = APIRouter(prefix="/v1/mcp", tags=["MCP HTTP Proxy"])
 
@@ -49,11 +55,9 @@ async def handle_mcp_jsonrpc(request: Request) -> JSONRPCResponse:
         if not isinstance(request_data, dict):
             return JSONRPCResponse(
                 error=JSONRPCError(
-                    code=-32600,
-                    message="Invalid Request",
-                    data="请求体必须是JSON对象"
+                    code=-32600, message="Invalid Request", data="请求体必须是JSON对象"
                 ),
-                id=None
+                id=None,
             )
 
         # 创建JSONRPCRequest对象
@@ -63,11 +67,9 @@ async def handle_mcp_jsonrpc(request: Request) -> JSONRPCResponse:
         if rpc_request.jsonrpc != "2.0":
             return JSONRPCResponse(
                 error=JSONRPCError(
-                    code=-32600,
-                    message="Invalid Request",
-                    data="只支持JSON-RPC 2.0"
+                    code=-32600, message="Invalid Request", data="只支持JSON-RPC 2.0"
                 ),
-                id=rpc_request.id
+                id=rpc_request.id,
             )
 
         # 路由到对应的处理器
@@ -76,10 +78,7 @@ async def handle_mcp_jsonrpc(request: Request) -> JSONRPCResponse:
         try:
             result = await _dispatch_method(rpc_request.method, rpc_request.params)
 
-            return JSONRPCResponse(
-                result=result,
-                id=rpc_request.id
-            )
+            return JSONRPCResponse(result=result, id=rpc_request.id)
 
         except Exception as e:
             error_msg = str(e)
@@ -87,23 +86,16 @@ async def handle_mcp_jsonrpc(request: Request) -> JSONRPCResponse:
 
             return JSONRPCResponse(
                 error=JSONRPCError(
-                    code=-32603,
-                    message="Internal error",
-                    data=error_msg
+                    code=-32603, message="Internal error", data=error_msg
                 ),
-                id=rpc_request.id
+                id=rpc_request.id,
             )
 
     except Exception as e:
         logger.error(f"❌ 解析请求失败: {e}")
 
         return JSONRPCResponse(
-            error=JSONRPCError(
-                code=-32700,
-                message="Parse error",
-                data=str(e)
-            ),
-            id=None
+            error=JSONRPCError(code=-32700, message="Parse error", data=str(e)), id=None
         )
 
 
@@ -114,7 +106,7 @@ async def _dispatch_method(method: str, params: dict | None):
         return await _handle_initialize(params)
 
     elif method == "tools/list":
-        return await _handle_tools_list()
+        return await _handle_tools_list(params)
 
     elif method == "tools/call":
         return await _handle_tools_call(params)
@@ -140,47 +132,26 @@ async def _handle_initialize(params: dict | None):
     # 返回服务器能力
     return {
         "protocolVersion": "2024-11-05",
-        "capabilities": {
-            "tools": {},
-            "resources": {},
-            "prompts": {}
-        },
-        "serverInfo": {
-            "name": "MCP-Bridge",
-            "version": "0.2.0"
-        }
+        "capabilities": {"tools": {}, "resources": {}, "prompts": {}},
+        "serverInfo": {"name": "MCP-Bridge", "version": "0.2.0"},
     }
 
 
-async def _handle_tools_list():
+async def _handle_tools_list(params: dict | None = None):
     """处理tools/list请求"""
-    logger.info("🔧 列出所有工具")
+    logger.info("🔧 列出可暴露工具")
 
-    all_tools = []
-    clients = ClientManager.get_clients()
-
-    for name, client in clients:
-        try:
-            if not client.session:
-                logger.warning(f"⚠️ 客户端 {name} 未连接")
-                continue
-
-            tools_result = await client.session.list_tools()
-            all_tools.extend(tools_result.tools)
-
-        except Exception as e:
-            logger.error(f"❌ 获取 {name} 工具列表失败: {e}")
-
-    logger.info(f"✅ 找到 {len(all_tools)} 个工具")
+    tools = await ToolRegistry.list_exposed_tools(ClientManager)
+    logger.info(f"✅ 暴露 {len(tools)} 个工具")
 
     return {
         "tools": [
             {
                 "name": tool.name,
                 "description": tool.description,
-                "inputSchema": tool.inputSchema
+                "inputSchema": tool.inputSchema,
             }
-            for tool in all_tools
+            for tool in tools
         ]
     }
 
@@ -195,34 +166,24 @@ async def _handle_tools_call(params: dict | None):
 
     logger.info(f"🔧 调用工具: {tool_name} 参数: {arguments}")
 
-    try:
-        # 找到提供该工具的客户端
-        client = await ClientManager.get_client_from_tool(tool_name)
+    result = await ToolRegistry.call_exposed_tool(ClientManager, tool_name, arguments)
+    return serialize_call_tool_result(result)
 
-        if not client or not client.session:
-            raise ValueError(f"未找到提供工具 '{tool_name}' 的客户端")
 
-        # 调用工具
-        result = await client.call_tool(tool_name, arguments)
+def serialize_call_tool_result(result: types.CallToolResult) -> dict:
+    content_list = []
+    for content in result.content:
+        if hasattr(content, "text"):
+            content_list.append({"type": "text", "text": content.text})
+        elif hasattr(content, "data"):
+            content_list.append({"type": content.type, "data": content.data})
+        else:
+            content_list.append({"type": "text", "text": str(content)})
 
-        # 转换结果为JSON可序列化格式
-        content_list = []
-        for content in result.content:
-            if hasattr(content, 'text'):
-                content_list.append({"type": "text", "text": content.text})
-            elif hasattr(content, 'data'):
-                content_list.append({"type": content.type, "data": content.data})
-            else:
-                content_list.append({"type": "text", "text": str(content)})
-
-        return {
-            "content": content_list,
-            "isError": result.isError if hasattr(result, 'isError') else False
-        }
-
-    except Exception as e:
-        logger.error(f"❌ 调用工具失败 {tool_name}: {e}")
-        raise
+    return {
+        "content": content_list,
+        "isError": result.isError if hasattr(result, "isError") else False,
+    }
 
 
 async def _handle_resources_list():
@@ -251,7 +212,7 @@ async def _handle_resources_list():
                 "uri": str(resource.uri),
                 "name": resource.name,
                 "description": resource.description,
-                "mimeType": resource.mimeType
+                "mimeType": resource.mimeType,
             }
             for resource in all_resources
         ]
@@ -283,7 +244,7 @@ async def _handle_prompts_list():
             {
                 "name": prompt.name,
                 "description": prompt.description,
-                "arguments": prompt.arguments
+                "arguments": prompt.arguments,
             }
             for prompt in all_prompts
         ]

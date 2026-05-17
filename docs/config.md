@@ -11,6 +11,7 @@ The config file is a json file that contains all the information needed to run t
 | mcp_servers      | MCP server connection info/configuration. This is mostly the same as claude desktop but with some extra options.                                                               |
 | network          | uvicorn network configuration. Only used outside of docker environment                                                                                                         |
 | logging          | The logging configuration. Set to DEBUG for debug logging                                                                                                                      |
+| gateway          | Gateway exposure configuration for MCP tools. Use `gateway.tools.mode=router` to expose only router tools to agents instead of every downstream tool.                         |
 
 Here is an example config.json file:
 
@@ -57,7 +58,57 @@ Here is an example config.json file:
     },
     "logging": {
         "log_level": "DEBUG"
+    },
+    "gateway": {
+        "tools": {
+            "mode": "router",
+            "collision_strategy": "namespace",
+            "router": {
+                "prefix": "mcp_bridge",
+                "search_result_limit": 20
+            }
+        }
     }
+}
+```
+
+## Gateway tool exposure
+
+`gateway.tools.mode` controls what agents see in `tools/list` and OpenAI tool injection:
+
+- `flat`: Default, backward-compatible behavior. Downstream tool names are exposed directly.
+- `filtered`: Exposes only tools matching `include` and not matching `exclude` rules.
+- `namespaced`: Exposes tools as `{server}__{tool}` to avoid name collisions.
+- `router`: Recommended for larger deployments. Agents see only gateway tools such as `mcp_bridge_search_tools` and `mcp_bridge_call_tool`.
+
+Example router configuration:
+
+```json
+{
+  "gateway": {
+    "tools": {
+      "mode": "router",
+      "router": {
+        "prefix": "mcp_bridge",
+        "search_result_limit": 20,
+        "include_input_schema": true
+      }
+    }
+  }
+}
+```
+
+Example filtering configuration:
+
+```json
+{
+  "gateway": {
+    "tools": {
+      "mode": "filtered",
+      "include": [{"server": "*", "tools": ["*"]}],
+      "exclude": [{"server": "filesystem", "tools": ["delete_*", "write_*"]}]
+    }
+  }
 }
 ```
 
@@ -72,7 +123,7 @@ when using docker you will need to add a reference to the config.json file in th
   environment:
     - MCP_BRIDGE__CONFIG__FILE=config.json # mount the config file for this to work
   ```
-  
+
   The mount point for using the config file would look like:
   ```yaml
     volumes:
