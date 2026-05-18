@@ -8,7 +8,6 @@ class Tag(str, Enum):
     mcp_server = "MCP Server APIs"
     openai = "OpenAI API Compatible APIs"
     health = "System Health API"
-    gitnexus = "GitNexus Webhook API"
 
 
 tags_metadata = [
@@ -27,9 +26,5 @@ tags_metadata = [
     {
         "name": Tag.health,
         "description": "System health endpoints",
-    },
-    {
-        "name": Tag.gitnexus,
-        "description": "Webhook endpoints for GitNexus index maintenance",
     },
 ]

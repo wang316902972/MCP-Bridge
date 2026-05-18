@@ -150,48 +150,6 @@ class GatewayConfig(BaseModel):
     )
 
 
-class GitNexusWebhookConfig(BaseModel):
-    enabled: bool = Field(False, description="Enable GitNexus GitLab webhook")
-    secret_token: str = Field(
-        "", description="GitLab webhook secret token from X-Gitlab-Token"
-    )
-    project_tokens: dict[str, str] = Field(
-        default_factory=dict,
-        description="Map GitLab project path/name/remote URL to webhook secret tokens",
-    )
-    branches: list[str] = Field(
-        default_factory=lambda: ["main", "master"],
-        description="Branch names that trigger GitNexus analysis",
-    )
-    repo_paths: dict[str, str] = Field(
-        default_factory=dict,
-        description="Map GitLab project path/name/remote URL to local repo paths",
-    )
-    registry_file: str = Field(
-        "~/.gitnexus/registry.json",
-        description="GitNexus registry used to resolve project remote URLs",
-    )
-    command: str = Field("gitnexus", description="GitNexus CLI command")
-    extra_args: list[str] = Field(
-        default_factory=list,
-        description="Additional arguments passed before the repo path",
-    )
-    sync_before_analyze: bool = Field(
-        True,
-        description="Fetch and fast-forward the local repository before analysis",
-    )
-    timeout_seconds: int = Field(
-        1800, ge=1, description="Maximum runtime for gitnexus analyze"
-    )
-
-
-class GitNexusConfig(BaseModel):
-    webhook: GitNexusWebhookConfig = Field(
-        default_factory=lambda: GitNexusWebhookConfig.model_construct(),
-        description="GitNexus integration configuration",
-    )
-
-
 class Security(BaseModel):
     CORS: Cors = Field(
         default_factory=lambda: Cors.model_construct(), description="CORS configuration"
@@ -256,11 +214,6 @@ class Settings(BaseSettings):
     gateway: GatewayConfig = Field(
         default_factory=lambda: GatewayConfig.model_construct(),
         description="Gateway configuration",
-    )
-
-    gitnexus: GitNexusConfig = Field(
-        default_factory=lambda: GitNexusConfig.model_construct(),
-        description="GitNexus integration configuration",
     )
 
     model_config = SettingsConfigDict(
