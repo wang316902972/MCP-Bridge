@@ -155,6 +155,10 @@ class GitNexusWebhookConfig(BaseModel):
     secret_token: str = Field(
         "", description="GitLab webhook secret token from X-Gitlab-Token"
     )
+    project_tokens: dict[str, str] = Field(
+        default_factory=dict,
+        description="Map GitLab project path/name/remote URL to webhook secret tokens",
+    )
     branches: list[str] = Field(
         default_factory=lambda: ["main", "master"],
         description="Branch names that trigger GitNexus analysis",

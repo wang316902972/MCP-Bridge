@@ -125,6 +125,26 @@ def resolve_repo_path(payload: dict, settings: GitNexusWebhookConfig) -> Path | 
     return _resolve_from_registry(keys, settings.registry_file)
 
 
+def resolve_project_token(payload: dict, settings: GitNexusWebhookConfig) -> str:
+    keys = _payload_keys(payload)
+
+    for key in keys:
+        token = settings.project_tokens.get(key)
+        if token:
+            return token
+
+    normalized_tokens = {
+        _normalize_remote_url(key): value
+        for key, value in settings.project_tokens.items()
+    }
+    for key in keys:
+        token = normalized_tokens.get(_normalize_remote_url(key))
+        if token:
+            return token
+
+    return settings.secret_token
+
+
 def run_gitnexus_analyze(repo_path: Path, settings: GitNexusWebhookConfig) -> None:
     if settings.sync_before_analyze:
         for cmd in (
@@ -192,15 +212,15 @@ async def gitlab_webhook(
             detail="GitNexus webhook is disabled",
         )
 
-    if not settings.secret_token:
+    payload = await request.json()
+    expected_token = resolve_project_token(payload, settings)
+    if not expected_token:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="GitNexus webhook secret token is not configured",
         )
 
-    if not x_gitlab_token or not secrets.compare_digest(
-        settings.secret_token, x_gitlab_token
-    ):
+    if not x_gitlab_token or not secrets.compare_digest(expected_token, x_gitlab_token):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid GitLab webhook token",
@@ -210,7 +230,6 @@ async def gitlab_webhook(
         response.status_code = status.HTTP_200_OK
         return {"status": "ignored", "reason": "event_not_supported"}
 
-    payload = await request.json()
     branch = _branch_from_ref(payload.get("ref"))
     if branch not in settings.branches:
         response.status_code = status.HTTP_200_OK

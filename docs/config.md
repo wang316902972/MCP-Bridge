@@ -127,7 +127,7 @@ http://yourserver:8000/gitnexus/webhooks/gitlab
 GitLab settings:
 
 - URL: the webhook URL above
-- Secret token: the same value as `gitnexus.webhook.secret_token`
+- Secret token: the value configured for that project in `project_tokens`
 - Trigger: Push events
 
 Example configuration:
@@ -137,7 +137,10 @@ Example configuration:
   "gitnexus": {
     "webhook": {
       "enabled": true,
-      "secret_token": "change-this-token",
+      "project_tokens": {
+        "bigdata/api": "api-webhook-token",
+        "bigdata/ds-service": "ds-service-webhook-token"
+      },
       "branches": ["main", "master"],
       "repo_paths": {
         "bigdata/api": "/usr/local/src/datawarehouse/api",
@@ -151,10 +154,15 @@ Example configuration:
 }
 ```
 
-`repo_paths` is optional if the project already exists in the GitNexus
-registry and its `remoteUrl` matches the GitLab payload. When
-`sync_before_analyze` is enabled, MCP-Bridge runs `git fetch --prune` and
-`git pull --ff-only` in the local clone before `gitnexus analyze`.
+`project_tokens` keys are matched against the GitLab project path, project
+name, and normalized remote URL from the webhook payload. `secret_token` is
+still available as a global fallback token, but `project_tokens` is preferred
+when multiple projects share the same webhook endpoint.
+
+`repo_paths` is optional if the project already exists in the GitNexus registry
+and its `remoteUrl` matches the GitLab payload. When `sync_before_analyze` is
+enabled, MCP-Bridge runs `git fetch --prune` and `git pull --ff-only` in the
+local clone before `gitnexus analyze`.
 
 If MCP-Bridge runs in Docker, the container must also have access to the
 GitNexus CLI, the GitNexus registry file, and every local clone path used by

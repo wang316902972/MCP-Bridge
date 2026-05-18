@@ -139,6 +139,67 @@ def test_gitlab_push_hook_rejects_invalid_secret(monkeypatch, tmp_path):
     assert calls == []
 
 
+def test_gitlab_push_hook_accepts_project_specific_secret(monkeypatch, tmp_path):
+    repo_path = tmp_path / "api"
+    repo_path.mkdir()
+    calls: list[str] = []
+    monkeypatch.setattr(
+        webhook_router,
+        "run_gitnexus_analyze",
+        lambda path, settings: calls.append(str(path)),
+    )
+
+    client = _client(
+        monkeypatch,
+        GitNexusWebhookConfig(
+            enabled=True,
+            project_tokens={"bigdata/api": "api-secret"},
+            repo_paths={"bigdata/api": str(repo_path)},
+        ),
+    )
+
+    response = client.post(
+        "/gitnexus/webhooks/gitlab",
+        json=_push_payload("master"),
+        headers={"X-Gitlab-Token": "api-secret", "X-Gitlab-Event": "Push Hook"},
+    )
+
+    assert response.status_code == 202
+    assert calls == [str(repo_path.resolve())]
+
+
+def test_gitlab_push_hook_rejects_token_for_different_project(monkeypatch, tmp_path):
+    repo_path = tmp_path / "api"
+    repo_path.mkdir()
+    calls: list[str] = []
+    monkeypatch.setattr(
+        webhook_router,
+        "run_gitnexus_analyze",
+        lambda path, settings: calls.append(str(path)),
+    )
+
+    client = _client(
+        monkeypatch,
+        GitNexusWebhookConfig(
+            enabled=True,
+            project_tokens={
+                "bigdata/api": "api-secret",
+                "bigdata/other": "other-secret",
+            },
+            repo_paths={"bigdata/api": str(repo_path)},
+        ),
+    )
+
+    response = client.post(
+        "/gitnexus/webhooks/gitlab",
+        json=_push_payload("master"),
+        headers={"X-Gitlab-Token": "other-secret", "X-Gitlab-Event": "Push Hook"},
+    )
+
+    assert response.status_code == 401
+    assert calls == []
+
+
 def test_gitlab_push_hook_resolves_repo_from_gitnexus_registry(monkeypatch, tmp_path):
     repo_path = tmp_path / "api"
     repo_path.mkdir()
