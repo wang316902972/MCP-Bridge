@@ -12,6 +12,7 @@ The config file is a json file that contains all the information needed to run t
 | network          | uvicorn network configuration. Only used outside of docker environment                                                                                                         |
 | logging          | The logging configuration. Set to DEBUG for debug logging                                                                                                                      |
 | gateway          | Gateway exposure configuration for MCP tools. Use `gateway.tools.mode=router` to expose only router tools to agents instead of every downstream tool.                         |
+| gitnexus         | Optional GitNexus webhook integration for refreshing local indexes from GitLab push events.                                                                                   |
 
 Here is an example config.json file:
 
@@ -112,6 +113,55 @@ Example filtering configuration:
 }
 ```
 
+## GitNexus GitLab webhook
+
+MCP-Bridge can expose a GitLab webhook endpoint that refreshes a local
+GitNexus index when GitLab reports a push to `main` or `master`.
+
+Webhook URL:
+
+```text
+http://yourserver:8000/gitnexus/webhooks/gitlab
+```
+
+GitLab settings:
+
+- URL: the webhook URL above
+- Secret token: the same value as `gitnexus.webhook.secret_token`
+- Trigger: Push events
+
+Example configuration:
+
+```json
+{
+  "gitnexus": {
+    "webhook": {
+      "enabled": true,
+      "secret_token": "change-this-token",
+      "branches": ["main", "master"],
+      "repo_paths": {
+        "bigdata/api": "/usr/local/src/datawarehouse/api",
+        "git.nd.com.cn/bigdata/api": "/usr/local/src/datawarehouse/api"
+      },
+      "registry_file": "~/.gitnexus/registry.json",
+      "sync_before_analyze": true,
+      "extra_args": ["--skip-agents-md"]
+    }
+  }
+}
+```
+
+`repo_paths` is optional if the project already exists in the GitNexus
+registry and its `remoteUrl` matches the GitLab payload. When
+`sync_before_analyze` is enabled, MCP-Bridge runs `git fetch --prune` and
+`git pull --ff-only` in the local clone before `gitnexus analyze`.
+
+If MCP-Bridge runs in Docker, the container must also have access to the
+GitNexus CLI, the GitNexus registry file, and every local clone path used by
+`repo_paths` or the registry. Mount those host paths into the container at the
+same paths, or set `registry_file` and `repo_paths` to the paths visible inside
+the container.
+
 ## Loading a config file
 
 ### Docker
@@ -145,4 +195,3 @@ when using docker you will need to add a reference to the config.json file in th
 ### Non Docker
 
 For non docker, the system will look for a `config.json` file in the current directory. This means that there is no special configuration needed. You can still use the advanced loading mechanisms if you want to, but you will need to modify the environment variables for your system as in the docker section.
-
