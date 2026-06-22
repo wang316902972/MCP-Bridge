@@ -6,7 +6,7 @@ __all__ = ["initial_settings"]
 
 
 class InitialSettings(BaseSettings):
-    file: Optional[str] = Field("config.json")
+    file: Optional[str] = Field("mcp_bridge/config.json")
     http_url: Optional[str] = Field(None)
     json: Optional[Json] = Field(None)  # allow for raw config to be passed as env var
 

@@ -1,55 +1,72 @@
+name: mcp-bridge
+
+x-proxy-build-args: &proxy-build-args
+  http_proxy: ${MCP_BRIDGE_PROXY:-}
+  https_proxy: ${MCP_BRIDGE_PROXY:-}
+  HTTP_PROXY: ${MCP_BRIDGE_PROXY:-}
+  HTTPS_PROXY: ${MCP_BRIDGE_PROXY:-}
+  NO_PROXY: ${MCP_BRIDGE_NO_PROXY:-localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12}
+  no_proxy: ${MCP_BRIDGE_NO_PROXY:-localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12}
+
+x-proxy-env: &proxy-env
+  http_proxy: ${MCP_BRIDGE_PROXY:-}
+  https_proxy: ${MCP_BRIDGE_PROXY:-}
+  HTTP_PROXY: ${MCP_BRIDGE_PROXY:-}
+  HTTPS_PROXY: ${MCP_BRIDGE_PROXY:-}
+  NO_PROXY: ${MCP_BRIDGE_NO_PROXY:-localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12}
+  no_proxy: ${MCP_BRIDGE_NO_PROXY:-localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12}
+
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: ${MCP_BRIDGE_LOG_MAX_SIZE:-10m}
+    max-file: ${MCP_BRIDGE_LOG_MAX_FILE:-3}
+
 services:
   mcp-bridge:
     build:
       context: .
-      args:
-        http_proxy: ${MCP_BRIDGE_PROXY:-}
-        https_proxy: ${MCP_BRIDGE_PROXY:-}
-        HTTP_PROXY: ${MCP_BRIDGE_PROXY:-}
-        HTTPS_PROXY: ${MCP_BRIDGE_PROXY:-}
-        NO_PROXY: ${MCP_BRIDGE_NO_PROXY:-localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12}
-        no_proxy: ${MCP_BRIDGE_NO_PROXY:-localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12}
+      args: *proxy-build-args
     develop:
       watch:
         - path: mcp_bridge
           action: rebuild
     container_name: mcp-bridge
     ports:
-      - "8004:8000"
+      - "${MCP_BRIDGE_PORT:-8004}:8000"
     networks:
       - default
       - mcp_network
     environment:
-      MCP_BRIDGE__CONFIG__FILE: /tmp/mcp_bridge_config.json
-      # Configure these in .env instead of hardcoding machine-specific proxy hosts.
-      http_proxy: ${MCP_BRIDGE_PROXY:-}
-      https_proxy: ${MCP_BRIDGE_PROXY:-}
-      HTTP_PROXY: ${MCP_BRIDGE_PROXY:-}
-      HTTPS_PROXY: ${MCP_BRIDGE_PROXY:-}
-      NO_PROXY: ${MCP_BRIDGE_NO_PROXY:-localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12}
-      no_proxy: ${MCP_BRIDGE_NO_PROXY:-localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12}
+      MCP_BRIDGE__CONFIG__FILE: /mcp_bridge/config.json
+      <<: *proxy-env
     volumes:
-      # 映射配置文件
-      - ./config.json:/tmp/mcp_bridge_config.json:ro
-      # 映射源码目录到容器，实现代码热更新
-      - ./mcp_bridge:/mcp_bridge:rw
-      # 可选：日志目录映射
-      # - ./logs:/mcp_bridge/logs:rw
+      # 源码目录映射 - 实现代码修改后立即生效
+      - ./mcp_bridge:/mcp_bridge
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/health >/dev/null || exit 1"]
+      interval: ${MCP_BRIDGE_HEALTH_INTERVAL:-30s}
+      timeout: ${MCP_BRIDGE_HEALTH_TIMEOUT:-5s}
+      retries: ${MCP_BRIDGE_HEALTH_RETRIES:-5}
+      start_period: ${MCP_BRIDGE_HEALTH_START_PERIOD:-30s}
+    logging: *default-logging
     restart: unless-stopped
+    stop_grace_period: 30s
 
   jaeger:
     image: jaegertracing/jaeger:latest
+    container_name: mcp-bridge-jaeger
     ports:
-      - "16686:16686"   # Web UI
-      # - "4317:4317"     # OTLP gRPC
-      - "4318:4318"     # OTLP HTTP
-      # - "5778:5778"     # Config server
-      # - "9411:9411"     # Zipkin compatible
+      - "${JAEGER_UI_PORT:-16686}:16686"
+      - "${JAEGER_OTLP_HTTP_PORT:-4318}:4318"
+    networks:
+      - default
+    logging: *default-logging
     restart: unless-stopped
 
 networks:
-    default:
-      driver: bridge
-    mcp_network:
-      external: true
-  
+  default:
+    driver: bridge
+  mcp_network:
+    external: true
+    name: ${MCP_BRIDGE_EXTERNAL_NETWORK:-mcp_network}
