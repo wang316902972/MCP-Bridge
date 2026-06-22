@@ -20,7 +20,7 @@ services:
       - default
       - mcp_network
     environment:
-      MCP_BRIDGE__CONFIG__FILE: config.json
+      MCP_BRIDGE__CONFIG__FILE: /tmp/mcp_bridge_config.json
       # Configure these in .env instead of hardcoding machine-specific proxy hosts.
       http_proxy: ${MCP_BRIDGE_PROXY:-}
       https_proxy: ${MCP_BRIDGE_PROXY:-}
@@ -30,7 +30,7 @@ services:
       no_proxy: ${MCP_BRIDGE_NO_PROXY:-localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12}
     volumes:
       # 映射配置文件
-      - ./config.json:/mcp_bridge/config.json:ro
+      - ./config.json:/tmp/mcp_bridge_config.json:ro
       # 映射源码目录到容器，实现代码热更新
       - ./mcp_bridge:/mcp_bridge:rw
       # 可选：日志目录映射
