@@ -1,0 +1,32 @@
+graph LR
+    main["应用入口\nmcp_bridge/main.py"]
+    routers["路由聚合\nmcp_bridge/routers.py"]
+    endpoints["OpenAI 兼容端点\nmcp_bridge/endpoints.py"]
+    openai_clients["推理客户端\nmcp_bridge/openai_clients/"]
+    gateway["工具网关注册表\nmcp_bridge/gateway/"]
+    mcp_clients["MCP 客户端管理\nmcp_bridge/mcp_clients/"]
+    mgmt["MCP 管理接口\nmcp_bridge/mcpManagement/"]
+    mcp_server["MCP 服务端/SSE\nmcp_bridge/mcp_server/"]
+    proxy["MCP HTTP 代理\nmcp_bridge/mcp_http_proxy/"]
+    config["配置加载\nmcp_bridge/config/"]
+    inference["推理引擎\n外部"]
+    mcp_tools["MCP 工具服务\n外部"]
+    openai_client["OpenAI 兼容客户端\n外部"]
+
+    main -->|"装配路由与生命周期"| routers
+    main -->|"读取运行配置"| config
+    routers -->|"挂载补全端点"| endpoints
+    routers -->|"挂载管理/服务端/代理"| mgmt
+    endpoints -->|"转发补全请求"| openai_clients
+    openai_clients -->|"调用推理"| inference
+    endpoints -->|"解析并注入可用工具"| gateway
+    gateway -->|"发现/调用工具"| mcp_clients
+    mcp_clients -->|"连接后端"| mcp_tools
+    mgmt -->|"管理服务与工具清单"| mcp_clients
+    mcp_server -->|"以 MCP/SSE 暴露聚合工具"| openai_client
+    proxy -->|"透传 MCP HTTP 流量"| mcp_tools
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class inference,mcp_tools,openai_client external
+    class main entry

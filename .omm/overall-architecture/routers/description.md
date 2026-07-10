@@ -1,0 +1,1 @@
+路由聚合，将补全端点、MCP 管理、MCP 服务端归入需鉴权的 secure_router，将健康检查与 HTTP 代理归入公开的 public_router。

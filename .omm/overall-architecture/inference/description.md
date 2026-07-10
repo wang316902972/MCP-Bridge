@@ -1,0 +1,1 @@
+外部系统：兼容 OpenAI 协议且支持 tool call 的推理引擎（如 vLLM/ollama 或云端网关），实际执行对话补全与工具决策。

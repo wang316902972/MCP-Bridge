@@ -1,0 +1,28 @@
+graph LR
+    client["OpenAI 兼容客户端\n外部"]
+    endpoint["chat/completions 端点\nmcp_bridge/endpoints.py"]
+    gateway["工具网关\nmcp_bridge/gateway/"]
+    chatcompletion["对话补全处理\nmcp_bridge/openai_clients/"]
+    inference["推理引擎\n外部"]
+    mcp_clients["MCP 客户端管理\nmcp_bridge/mcp_clients/"]
+    mcp_tools["MCP 工具服务\n外部"]
+
+    client -->|"发送对话补全请求"| endpoint
+    endpoint -->|"获取可用工具清单"| gateway
+    gateway -->|"从各服务器聚合工具"| mcp_clients
+    endpoint -->|"携带工具发起补全"| chatcompletion
+    chatcompletion -->|"请求推理与工具决策"| inference
+    inference -->|"返回工具调用请求"| chatcompletion
+    chatcompletion -->|"路由工具调用"| gateway
+    gateway -->|"执行目标工具"| mcp_clients
+    mcp_clients -->|"调用后端工具"| mcp_tools
+    mcp_tools -->|"返回工具结果"| mcp_clients
+    mcp_clients -->|"回填结果"| chatcompletion
+    chatcompletion -->|"再次推理生成回复"| inference
+    chatcompletion -->|"返回最终补全"| endpoint
+    endpoint -->|"响应(流式或整体)"| client
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class client,inference,mcp_tools external
+    class endpoint entry

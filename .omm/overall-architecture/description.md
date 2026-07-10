@@ -1,0 +1,1 @@
+MCP-Bridge 是一个中间件服务，在 OpenAI API 与 MCP（Model Context Protocol）工具之间架设桥梁：让任意兼容 OpenAI 接口的客户端无需原生支持 MCP，即可通过标准的补全/对话接口使用 MCP 工具。基于 FastAPI 构建，支持流式与非流式对话补全、工具网关路由、MCP 管理接口、MCP 服务端 SSE 暴露与 HTTP 代理。

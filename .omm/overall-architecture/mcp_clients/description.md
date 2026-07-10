@@ -1,0 +1,1 @@
+MCP 客户端管理，按配置为每个 MCP 服务器构造 Stdio/SSE/HTTP/Docker 客户端并统一管理连接与工具发现调用。

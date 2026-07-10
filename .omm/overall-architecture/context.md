@@ -1,0 +1,1 @@
+面向希望在现有 OpenAI 生态客户端（如 Open WebUI）中接入 MCP 工具的场景。服务通过 config.json 声明后端推理引擎与多个 MCP 工具服务器（本项目实际接入了 knowledge_base、StarRocksMetadata、StarRocksLineage 等 HTTP MCP 服务），并以 router 网关模式聚合工具供模型调用。

@@ -1,0 +1,1 @@
+OpenAI 兼容端点，提供 /v1/completions、/v1/chat/completions、/v1/models，是客户端接入的主接口，负责在对话中注入并处理 MCP 工具调用。

@@ -1,0 +1,20 @@
+created: 2026-07-06T08:20:16.298Z
+updated: 2026-07-06T08:20:16.663Z
+update_count: 5
+last_field: concern
+git_commit: f9d4b06
+git_branch: master
+children:
+  - config
+  - endpoints
+  - gateway
+  - inference
+  - main
+  - mcp_clients
+  - mcp_server
+  - mcp_tools
+  - mgmt
+  - openai_client
+  - openai_clients
+  - proxy
+  - routers

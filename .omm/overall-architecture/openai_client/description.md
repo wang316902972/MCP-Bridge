@@ -1,0 +1,1 @@
+外部系统：任意兼容 OpenAI API 的客户端（如 Open WebUI），无需原生支持 MCP 即可经本桥接使用工具。

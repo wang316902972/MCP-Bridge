@@ -1,0 +1,1 @@
+推理引擎需支持 tool call；MCP 工具服务器与推理引擎均为外部依赖，经 config 声明并由 MCP 客户端管理器统一连接；工具网关在超长名称时做哈希截断与冲突分组；secure 路由需 API Key 鉴权，health 与 HTTP 代理为公开路由。

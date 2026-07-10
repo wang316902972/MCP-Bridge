@@ -1,0 +1,1 @@
+描述 MCP-Bridge 的核心价值链路——让不支持 MCP 的 OpenAI 客户端也能透明使用 MCP 工具。适用于 /v1/chat/completions 端点的工具增强对话主链路。
